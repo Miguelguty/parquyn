@@ -20,18 +20,115 @@
         body.dataset.on = isOn() ? 'false' : 'true';
         body.classList.add('has-toggled');
         try { sessionStorage.setItem('lamp', isOn() ? 'on' : 'off'); } catch (e) {}
-
-        lamp.classList.remove('is-pulled');
-        void lamp.offsetWidth; // restart the cord animation on rapid clicks
-        lamp.classList.add('is-pulled');
-
+        try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {}
         syncLamp();
     }
 
-    lamp.addEventListener('click', toggle);
-    lamp.addEventListener('animationend', (e) => {
-        if (e.animationName === 'cordBead') lamp.classList.remove('is-pulled');
+    // ---------- Pull cord ----------
+
+    const cordHit = document.getElementById('cordHit');
+    const lampSvg = lamp.querySelector('svg');
+    const SVG_WIDTH = 320;   // viewBox width, to convert screen px to SVG units
+    const PULL_MAX = 46;     // the cord never stretches past this
+    const PULL_TRIGGER = 24; // pulled this far, the switch clicks
+
+    let pull = 0;
+    let pullVel = 0;
+    let springId = 0;
+    let drag = null;
+
+    function setPull(v) {
+        pull = v;
+        lampSvg.style.setProperty('--pull', v.toFixed(2));
+    }
+
+    // Damped spring back to rest. A non-zero v0 gives the cord a kick (taps, keyboard).
+    function release(v0) {
+        cancelAnimationFrame(springId);
+        pullVel = v0;
+        if (reducedMotion.matches) {
+            setPull(0);
+            pullVel = 0;
+            return;
+        }
+
+        let prev = performance.now();
+        const step = (now) => {
+            const dt = Math.min((now - prev) / 1000, 1 / 30);
+            prev = now;
+            pullVel += (-220 * pull - 11 * pullVel) * dt;
+            setPull(pull + pullVel * dt);
+
+            if (Math.abs(pull) < 0.05 && Math.abs(pullVel) < 0.5) {
+                setPull(0);
+                return;
+            }
+            springId = requestAnimationFrame(step);
+        };
+        springId = requestAnimationFrame(step);
+    }
+
+    cordHit.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        cancelAnimationFrame(springId);
+        cordHit.setPointerCapture(e.pointerId);
+
+        drag = {
+            id: e.pointerId,
+            y0: e.clientY,
+            scale: lampSvg.getBoundingClientRect().width / SVG_WIDTH,
+            from: pull,
+            moved: 0,
+            fired: false,
+        };
+        body.classList.add('is-dragging');
     });
+
+    cordHit.addEventListener('pointermove', (e) => {
+        if (!drag || e.pointerId !== drag.id) return;
+
+        const dy = e.clientY - drag.y0;
+        drag.moved = Math.max(drag.moved, Math.abs(dy));
+
+        // Rubber band: follows the pointer closely at first, then resists. Little give upwards.
+        const raw = drag.from + dy / drag.scale;
+        setPull(raw <= 0 ? raw * 0.2 : PULL_MAX * Math.tanh(raw / PULL_MAX));
+
+        if (!drag.fired && pull >= PULL_TRIGGER) {
+            drag.fired = true;
+            toggle();
+        }
+    });
+
+    function endDrag(e) {
+        if (!drag || e.pointerId !== drag.id) return;
+        const wasTap = e.type === 'pointerup' && !drag.fired && drag.moved < 5;
+        drag = null;
+        body.classList.remove('is-dragging');
+
+        if (wasTap) toggle();
+        release(wasTap ? 400 : 0);
+    }
+
+    cordHit.addEventListener('pointerup', endDrag);
+    cordHit.addEventListener('pointercancel', endDrag);
+
+    // Pointer events still fire after this, but the page will not scroll under the finger.
+    cordHit.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+
+    // Keyboard and assistive tech activate the button with detail 0. Real clicks
+    // (detail > 0) are handled by the cord above, so clicking the lamp body does nothing.
+    lamp.addEventListener('click', (e) => {
+        if (e.detail !== 0) return;
+        toggle();
+        release(400);
+    });
+
+    // One small nudge while the lamp is still off, so people notice the cord moves.
+    setTimeout(() => {
+        if (!isOn() && !drag && !body.classList.contains('has-toggled') && !reducedMotion.matches) release(220);
+    }, 1400);
 
     // ---------- Password reveal ----------
 

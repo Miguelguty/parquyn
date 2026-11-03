@@ -127,7 +127,7 @@ body[data-on="true"] .ambient-glow {
     padding: 0;
     border: 0;
     background: none;
-    cursor: pointer;
+    cursor: default;
     border-radius: 14px;
     -webkit-tap-highlight-color: transparent;
 }
@@ -181,32 +181,26 @@ body[data-on="true"] .pool {
 
 .cord-line, .cord-bead { transition: fill .5s ease, stroke .5s ease, filter .5s ease; }
 
+/* --pull is set from login.js: how far the cord is pulled, in SVG units. */
 .cord-line {
     stroke: var(--metal);
     transform-origin: 130px 188px;
+    transform: scaleY(calc(1 + var(--pull, 0) / 64));
 }
 
 .cord-bead {
     fill: var(--metal);
+    transform: translateY(calc(var(--pull, 0) * 1px));
 }
 
 body[data-on="true"] .cord-bead { filter: drop-shadow(0 0 6px rgba(246, 166, 35, .8)); }
 
-.lamp.is-pulled .cord-line { animation: cordStretch .5s var(--ease-out); }
-.lamp.is-pulled .cord-bead { animation: cordBead .5s var(--ease-out); }
+.cord-hit { cursor: grab; touch-action: none; }
+.cord-hit line, .cord-hit circle { pointer-events: all; }
 
-@keyframes cordStretch {
-    0%   { transform: scaleY(1); }
-    30%  { transform: scaleY(1.28); }
-    58%  { transform: scaleY(.96); }
-    100% { transform: scaleY(1); }
-}
-
-@keyframes cordBead {
-    0%   { transform: translateY(0); }
-    30%  { transform: translateY(18px); }
-    58%  { transform: translateY(-3px); }
-    100% { transform: translateY(0); }
+body.is-dragging, body.is-dragging * {
+    cursor: grabbing !important;
+    user-select: none;
 }
 
 .hint {

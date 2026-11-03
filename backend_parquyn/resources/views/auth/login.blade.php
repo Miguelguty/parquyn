@@ -88,9 +88,15 @@
                     <!-- Pull cord -->
                     <line class="cord-line" x1="130" y1="188" x2="130" y2="252" stroke="#c99a3b" stroke-width="2.5" stroke-linecap="round"/>
                     <circle class="cord-bead" cx="130" cy="259" r="8" fill="#e0ad45"/>
+
+                    <!-- Larger invisible target so the cord is easy to grab with a finger -->
+                    <g id="cordHit" class="cord-hit">
+                        <line x1="130" y1="192" x2="130" y2="259" stroke="transparent" stroke-width="34" stroke-linecap="round"/>
+                        <circle cx="130" cy="259" r="26" fill="transparent"/>
+                    </g>
                 </svg>
             </button>
-            <p class="hint" id="hint">Pull the cord</p>
+            <p class="hint" id="hint">Pull the cord down</p>
         </section>
 
         <section class="card" aria-labelledby="welcome-title">
