@@ -52,6 +52,19 @@ lo cancelado y lo asignado), en el mismo formato que se carga:
 - Dentro de claude.ai la descarga usa la capacidad `downloads` de los artefactos (la página la declara al publicarse);
   en un navegador normal es una descarga común.
 
+## Publicar en un servidor
+
+La app es un sitio estático (sin servidor propio). `npm run build` genera `dist/` con rutas relativas, así que funciona
+desde cualquier subcarpeta, por ejemplo `https://mi-servidor/legacy/calendario/`:
+
+1. `npm install && npm run build`
+2. Copia el **contenido** de `dist/` (`index.html`, `favicon.svg` y la carpeta `assets/`) a la carpeta que el servidor
+   publica como `/legacy/calendario/`.
+
+Los datos que cargas se guardan en el navegador de **cada dispositivo** (localStorage, ligado al nombre del sitio):
+el celular y el computador no comparten calendario. Para pasar datos de uno a otro, usa **Exportar a Excel** y
+**Cargar otro Excel**.
+
 ## Comandos
 
 ```bash
