@@ -1,7 +1,8 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { AgendaView } from './components/AgendaView'
+import { FormActividad } from './components/FormActividad'
 import { MesView } from './components/MesView'
-import { aplicarCambios, ordenar, type Actividad, type Cambios } from './lib/actividades'
+import { aplicarCambios, crearActividad, ordenar, type Actividad, type Cambios } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
 import { MESES, hoyISO } from './lib/formato'
 import { resultadoDemo } from './lib/demo'
@@ -41,6 +42,8 @@ export default function App() {
   const [seleccionado, setSeleccionado] = useState<string | null>(() => primerDia(datos?.actividades ?? [], hoy))
   const [confirmandoBorrar, setConfirmandoBorrar] = useState(false)
   const [pendiente, setPendiente] = useState<File | null>(null)
+  const [agregando, setAgregando] = useState(false)
+  const [fechaNueva, setFechaNueva] = useState(hoy)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [arrastrando, setArrastrando] = useState(false)
@@ -69,9 +72,11 @@ export default function App() {
   }
 
   /** Cambios hechos a mano en la app que un Excel nuevo haría desaparecer. */
-  const editadas = datos && !datos.esEjemplo ? datos.actividades.filter((a) => a.editada).length : 0
+  const editadas = datos && !datos.esEjemplo ? datos.actividades.filter((a) => a.editada && !a.nueva).length : 0
+  const nuevas = datos && !datos.esEjemplo ? datos.actividades.filter((a) => a.nueva).length : 0
   const canceladas = datos ? datos.actividades.filter((a) => a.cancelada).length : 0
-  const conCambios = datos && !datos.esEjemplo ? datos.actividades.filter((a) => a.editada || a.cancelada).length : 0
+  const conCambios =
+    datos && !datos.esEjemplo ? datos.actividades.filter((a) => a.editada || a.cancelada || a.nueva).length : 0
 
   function pedirCarga(archivo: File) {
     if (conCambios > 0) {
@@ -95,6 +100,25 @@ export default function App() {
     const nueva = aplicarCambios(actual, cambios)
     cambiar(id, () => nueva)
     // Muestra dónde quedó la actividad si cambió de fecha.
+    setSeleccionado(nueva.fecha)
+    setCursor({ año: +nueva.fecha.slice(0, 4), mes: +nueva.fecha.slice(5, 7) - 1 })
+  }
+
+  function alternarAgregar() {
+    // La fecha inicial es el día seleccionado al abrir; después no cambia aunque toques otro día.
+    if (!agregando) setFechaNueva(seleccionado ?? hoy)
+    setAgregando(!agregando)
+  }
+
+  function agregarActividad(cambios: Cambios) {
+    if (!datos) return
+    const id = `nueva-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+    const fila = datos.actividades.reduce((mayor, a) => Math.max(mayor, a.fila), 0) + 1
+    const nueva = crearActividad(cambios, id, fila)
+    const nuevo: Datos = { ...datos, actividades: ordenar([...datos.actividades, nueva]) }
+    setDatos(nuevo)
+    guardar(nuevo)
+    setAgregando(false)
     setSeleccionado(nueva.fecha)
     setCursor({ año: +nueva.fecha.slice(0, 4), mes: +nueva.fecha.slice(5, 7) - 1 })
   }
@@ -206,6 +230,7 @@ export default function App() {
             {datos.actividades.length} actividad{datos.actividades.length === 1 ? '' : 'es'} · {datos.nombre}
             {canceladas > 0 && ` · ${canceladas} cancelada${canceladas === 1 ? '' : 's'}`}
             {editadas > 0 && ` · ${editadas} editada${editadas === 1 ? '' : 's'}`}
+            {nuevas > 0 && ` · ${nuevas} nueva${nuevas === 1 ? '' : 's'}`}
           </p>
           {datos.esEjemplo && (
             <p className="ejemplo">
@@ -237,7 +262,7 @@ export default function App() {
       {pendiente && (
         <div role="alert" className="aviso-carga">
           <p>
-            Tienes {conCambios} actividad{conCambios === 1 ? '' : 'es'} con cambios hechos aquí (editadas o canceladas).
+            Tienes {conCambios} actividad{conCambios === 1 ? '' : 'es'} con cambios hechos aquí (editadas, canceladas o nuevas).
             Si cargas "{pendiente.name}", esos cambios se pierden.
           </p>
           <div className="botones-form">
@@ -285,6 +310,33 @@ export default function App() {
           </div>
         )}
       </nav>
+
+      <div className="agregar">
+        <button type="button" className={agregando ? undefined : 'primario'} onClick={alternarAgregar} aria-expanded={agregando}>
+          {agregando ? 'Cerrar' : '+ Agregar actividad'}
+        </button>
+      </div>
+      {agregando && (
+        <article className="actividad editando nuevo-form">
+          <FormActividad
+            titulo="Agregar actividad"
+            inicial={{
+              dependencia: '',
+              fecha: fechaNueva,
+              hora: null,
+              horaFin: null,
+              enlace: '',
+              telefono: '',
+              observacion: '',
+            }}
+            idBase="nueva"
+            dependenciaObligatoria
+            textoGuardar="Agregar al calendario"
+            onGuardar={agregarActividad}
+            onCerrar={() => setAgregando(false)}
+          />
+        </article>
+      )}
 
       {vista === 'mes' ? (
         <MesView

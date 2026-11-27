@@ -23,6 +23,8 @@ export type Actividad = {
   avisos: string[]
   /** Se cambió a mano en la app (ya no coincide con el Excel). */
   editada?: boolean
+  /** Se agregó a mano en la app: no viene del Excel. */
+  nueva?: boolean
   /** Se canceló en la app. Sigue en el calendario, marcada como cancelada. */
   cancelada?: boolean
 }
@@ -294,29 +296,41 @@ export type Cambios = {
 }
 
 /** Devuelve un mensaje de error en español, o null si los cambios son válidos. */
-export function validarCambios(c: Cambios): string | null {
+export function validarCambios(c: Cambios, opciones: { dependenciaObligatoria?: boolean } = {}): string | null {
+  if (opciones.dependenciaObligatoria && !c.dependencia.trim()) return 'Escribe la dependencia.'
   if (!parseFecha(c.fecha)) return 'La fecha no es válida.'
   if (c.horaFin && !c.hora) return 'Pon la hora inicial antes de la hora final.'
   if (c.hora && c.horaFin && c.horaFin <= c.hora) return 'La hora final debe ser después de la inicial.'
   return null
 }
 
-/** Aplica los cambios a una actividad: recalcula el día, la marca como editada
- *  y limpia sus avisos (la persona ya revisó la fila). Asume cambios válidos. */
-export function aplicarCambios(a: Actividad, c: Cambios): Actividad {
-  const fecha = parseFecha(c.fecha) ?? a.fecha
+function camposDe(c: Cambios, fechaRespaldo: string) {
+  const fecha = parseFecha(c.fecha) ?? fechaRespaldo
   return {
-    ...a,
     dependencia: c.dependencia.trim(),
     fecha,
     dia: diaDeLaSemana(fecha),
     hora: c.hora,
     horaFin: c.hora ? c.horaFin : null,
-    horaTexto: c.hora ? '' : a.horaTexto,
     enlace: c.enlace.trim(),
     telefono: c.telefono.trim(),
     observacion: c.observacion.trim(),
     avisos: [],
+  }
+}
+
+/** Aplica los cambios a una actividad: recalcula el día, la marca como editada
+ *  y limpia sus avisos (la persona ya revisó la fila). Asume cambios válidos. */
+export function aplicarCambios(a: Actividad, c: Cambios): Actividad {
+  return {
+    ...a,
+    ...camposDe(c, a.fecha),
+    horaTexto: c.hora ? '' : a.horaTexto,
     editada: true,
   }
+}
+
+/** Crea una actividad nueva (que no viene del Excel). `fila` solo sirve para desempatar el orden. */
+export function crearActividad(c: Cambios, id: string, fila: number): Actividad {
+  return { id, fila, horaTexto: '', ...camposDe(c, c.fecha), nueva: true }
 }

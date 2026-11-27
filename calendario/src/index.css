@@ -170,3 +170,7 @@ textarea { resize: vertical; }
 .chip.cancelada { background: transparent; color: var(--suave); text-decoration: line-through; border: 1px solid var(--borde); }
 .mes-celda.solo-canceladas { border-style: dashed; }
 .aviso-carga { background: var(--error-fondo); color: var(--error-texto); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
+
+.agregar { margin-bottom: 12px; }
+.nuevo-form { margin-bottom: 16px; }
+.estado.nueva { background: var(--acento); color: var(--acento-texto); }

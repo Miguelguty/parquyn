@@ -252,3 +252,41 @@ describe('ordenar', () => {
     expect(original.map((x) => x.id)).toEqual(['fila-2', 'fila-3'])
   })
 })
+
+import { crearActividad } from './actividades'
+
+describe('validarCambios con dependencia obligatoria', () => {
+  it('exige la dependencia solo cuando se pide', () => {
+    const vacia = cambiosDe(base, { dependencia: '   ' })
+    expect(validarCambios(vacia)).toBeNull()
+    expect(validarCambios(vacia, { dependenciaObligatoria: true })).toMatch(/dependencia/i)
+    expect(validarCambios(cambiosDe(base), { dependenciaObligatoria: true })).toBeNull()
+  })
+})
+
+describe('crearActividad', () => {
+  const c = cambiosDe(base, { dependencia: ' Contraloría ', fecha: '2026-12-07', hora: '09:00', horaFin: '10:30' })
+  const n = crearActividad(c, 'nueva-1', 7)
+
+  it('crea una actividad con día calculado, marcada como nueva y sin avisos', () => {
+    expect(n).toMatchObject({
+      id: 'nueva-1',
+      fila: 7,
+      dependencia: 'Contraloría',
+      fecha: '2026-12-07',
+      dia: 'lunes',
+      hora: '09:00',
+      horaFin: '10:30',
+      horaTexto: '',
+      avisos: [],
+      nueva: true,
+    })
+  })
+  it('no queda marcada como editada ni cancelada', () => {
+    expect(n.editada).toBeUndefined()
+    expect(n.cancelada).toBeUndefined()
+  })
+  it('sin hora inicial no guarda hora final', () => {
+    expect(crearActividad(cambiosDe(base, { hora: null, horaFin: '11:00' }), 'n', 1).horaFin).toBeNull()
+  })
+})
