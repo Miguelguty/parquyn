@@ -6,11 +6,13 @@ import { FormActividad } from './FormActividad'
 type Props = {
   pendientes: Pendiente[]
   onAsignar: (id: string, cambios: Cambios) => void
+  onQuitar: (id: string) => void
 }
 
 /** Filas del Excel que todavía no tienen fecha. Al asignarla pasan al calendario. */
-export function PendientesPanel({ pendientes, onAsignar }: Props) {
+export function PendientesPanel({ pendientes, onAsignar, onQuitar }: Props) {
   const [abierto, setAbierto] = useState<string | null>(null)
+  const [confirmando, setConfirmando] = useState<string | null>(null)
   if (pendientes.length === 0) return null
 
   return (
@@ -51,6 +53,24 @@ export function PendientesPanel({ pendientes, onAsignar }: Props) {
               {p.observacion && <p className="observacion">{p.observacion}</p>}
               <div className="acciones-act">
                 <button type="button" className="primario" onClick={() => setAbierto(p.id)}>Asignar fecha</button>
+                {confirmando === p.id ? (
+                  <span className="confirmar" role="group" aria-label={`Confirmar quitar ${p.dependencia}`}>
+                    <span>¿Quitar "{p.dependencia}" de la lista?</span>
+                    <button
+                      type="button"
+                      className="peligro"
+                      onClick={() => {
+                        onQuitar(p.id)
+                        setConfirmando(null)
+                      }}
+                    >
+                      Sí, quitar
+                    </button>
+                    <button type="button" onClick={() => setConfirmando(null)}>No</button>
+                  </span>
+                ) : (
+                  <button type="button" className="peligro" onClick={() => setConfirmando(p.id)}>Quitar de la lista</button>
+                )}
                 <span className="muted fila">Fila {p.fila} del Excel</span>
               </div>
             </div>

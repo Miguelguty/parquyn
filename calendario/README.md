@@ -17,7 +17,8 @@ columnas; solo **Fecha** es obligatoria y el resto son opcionales:
 - **Hora** acepta celdas de hora de Excel o texto: `9:00`, `14:30`, `3 PM`, `8:00 AM`, rangos como `9:00 a 11:30` o `10:00 – 12:00`.
   Si no se entiende, la actividad se muestra igual con el texto original y un aviso.
 - **Filas sin fecha:** una fila con dependencia pero sin fecha no es un error: va a la lista **Sin fecha**, desde donde
-  se le asigna una fecha y pasa al calendario. Un título de sección que empiece por "Sin fecha" se ignora.
+  se le asigna una fecha y pasa al calendario, o se **quita de la lista** (con confirmación; no se toca tu Excel y
+  vuelve a aparecer si recargas el original). Un título de sección que empiece por "Sin fecha" se ignora.
 - Se lee la primera hoja del archivo. Acepta `.xlsx` y `.xlsm` (las macros no se leen ni se ejecutan).
 - Un archivo nuevo reemplaza al anterior.
 

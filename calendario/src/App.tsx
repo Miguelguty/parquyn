@@ -164,6 +164,13 @@ export default function App() {
     setCursor({ año: +actividad.fecha.slice(0, 4), mes: +actividad.fecha.slice(5, 7) - 1 })
   }
 
+  function quitarPendiente(id: string) {
+    if (!datos) return
+    const nuevo: Datos = { ...datos, sinFecha: (datos.sinFecha ?? []).filter((p) => p.id !== id) }
+    setDatos(nuevo)
+    guardar(nuevo)
+  }
+
   function marcarCancelada(id: string, cancelada: boolean) {
     cambiar(id, (a) => ({ ...a, cancelada }))
   }
@@ -366,7 +373,7 @@ export default function App() {
         )}
       </nav>
 
-      <PendientesPanel pendientes={datos.sinFecha ?? []} onAsignar={asignarAPendiente} />
+      <PendientesPanel pendientes={datos.sinFecha ?? []} onAsignar={asignarAPendiente} onQuitar={quitarPendiente} />
 
       <div className="agregar">
         <button type="button" className={agregando ? undefined : 'primario'} onClick={alternarAgregar} aria-expanded={agregando}>
