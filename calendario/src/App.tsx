@@ -4,9 +4,22 @@ import { MesView } from './components/MesView'
 import type { Actividad } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
 import { MESES, hoyISO } from './lib/formato'
+import { resultadoDemo } from './lib/demo'
 import { leerExcel } from './lib/leerExcel'
 
 type Vista = 'mes' | 'agenda'
+
+/** En la versión de demostración publicada se abre ya con datos de ejemplo. */
+const ABRIR_CON_EJEMPLO = import.meta.env.VITE_ARTIFACT === '1'
+
+function datosEjemplo(): Datos {
+  const r = resultadoDemo()
+  return { nombre: 'Datos de ejemplo', actividades: r.actividades, problemas: r.problemas, esEjemplo: true }
+}
+
+function primerDia(actividades: Actividad[], hoy: string): string | null {
+  return actividades.find((a) => a.fecha >= hoy)?.fecha ?? actividades[0]?.fecha ?? null
+}
 
 /** Elige el mes que conviene mostrar primero: el de hoy si tiene actividades,
  *  si no el de la próxima actividad, y si no hay próximas, el de la última. */
@@ -22,13 +35,11 @@ function mesInicial(actividades: Actividad[], hoy: string): { año: number; mes:
 
 export default function App() {
   const hoy = hoyISO()
-  const [datos, setDatos] = useState<Datos | null>(() => cargar())
+  const [datos, setDatos] = useState<Datos | null>(() => cargar() ?? (ABRIR_CON_EJEMPLO ? datosEjemplo() : null))
   const [vista, setVista] = useState<Vista>('mes')
   const [cursor, setCursor] = useState(() => mesInicial(datos?.actividades ?? [], hoy))
-  const [seleccionado, setSeleccionado] = useState<string | null>(() => {
-    const acts = datos?.actividades ?? []
-    return acts.find((a) => a.fecha >= hoy)?.fecha ?? acts[0]?.fecha ?? null
-  })
+  const [seleccionado, setSeleccionado] = useState<string | null>(() => primerDia(datos?.actividades ?? [], hoy))
+  const [confirmandoBorrar, setConfirmandoBorrar] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [arrastrando, setArrastrando] = useState(false)
@@ -42,9 +53,9 @@ export default function App() {
       const nuevo: Datos = { nombre: archivo.name, actividades: r.actividades, problemas: r.problemas }
       setDatos(nuevo)
       guardar(nuevo)
-      const inicio = mesInicial(r.actividades, hoy)
-      setCursor(inicio)
-      setSeleccionado(r.actividades.find((a) => a.fecha >= hoy)?.fecha ?? r.actividades[0]?.fecha ?? null)
+      setCursor(mesInicial(r.actividades, hoy))
+      setSeleccionado(primerDia(r.actividades, hoy))
+      setConfirmandoBorrar(false)
     } catch {
       setError(
         'No pude abrir ese archivo. Tiene que ser un Excel .xlsx. Si es un .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.',
@@ -74,12 +85,20 @@ export default function App() {
     setSeleccionado(hoy)
   }
 
+  function verEjemplo() {
+    const ejemplo = datosEjemplo()
+    setDatos(ejemplo)
+    setCursor(mesInicial(ejemplo.actividades, hoy))
+    setSeleccionado(primerDia(ejemplo.actividades, hoy))
+    setError(null)
+  }
+
   function borrar() {
-    if (!window.confirm('¿Borrar el calendario cargado de este dispositivo? Tu archivo de Excel no se toca.')) return
     setDatos(null)
     guardar(null)
     setSeleccionado(null)
     setError(null)
+    setConfirmandoBorrar(false)
   }
 
   const avisosCuenta = datos ? datos.actividades.filter((a) => a.avisos.length > 0).length : 0
@@ -116,6 +135,9 @@ export default function App() {
             {cargando ? 'Leyendo…' : 'Elegir archivo Excel (.xlsx)'}
           </button>
           <p className="muted">o suéltalo aquí</p>
+          <p>
+            <button type="button" onClick={verEjemplo}>Ver con datos de ejemplo</button>
+          </p>
         </div>
         {error && <p role="alert" className="error">{error}</p>}
         <section className="ayuda">
@@ -124,9 +146,11 @@ export default function App() {
             Una fila por actividad, con estas columnas en la primera fila: <strong>Dependencia, Fechas, Días, Hora,
             Enlace, Teléfono en enlace, Observación</strong>. No importan las mayúsculas ni las tildes.
           </p>
-          <p>
-            <a href={`${import.meta.env.BASE_URL}ejemplo.xlsx`} download>Descargar un Excel de ejemplo</a>
-          </p>
+          {!ABRIR_CON_EJEMPLO && (
+            <p>
+              <a href={`${import.meta.env.BASE_URL}ejemplo.xlsx`} download>Descargar un Excel de ejemplo</a>
+            </p>
+          )}
           <p className="muted">
             Tu archivo se lee en este mismo dispositivo y no se envía a ningún servidor. Las fechas escritas como
             texto se leen con el día primero (3/12/2026 es 3 de diciembre).
@@ -144,13 +168,28 @@ export default function App() {
           <p className="muted">
             {datos.actividades.length} actividad{datos.actividades.length === 1 ? '' : 'es'} · {datos.nombre}
           </p>
+          {datos.esEjemplo && (
+            <p className="ejemplo">
+              Estás viendo datos de ejemplo con fechas cercanas a hoy. Carga tu Excel para ver los tuyos.
+            </p>
+          )}
         </div>
         <div className="acciones">
           {selector}
-          <button type="button" onClick={() => entrada.current?.click()} disabled={cargando}>
-            {cargando ? 'Leyendo…' : 'Cargar otro Excel'}
+          <button type="button" className={datos.esEjemplo ? 'primario' : undefined} onClick={() => entrada.current?.click()} disabled={cargando}>
+            {cargando ? 'Leyendo…' : datos.esEjemplo ? 'Cargar mi Excel' : 'Cargar otro Excel'}
           </button>
-          <button type="button" className="peligro" onClick={borrar}>Borrar</button>
+          {datos.esEjemplo ? (
+            <button type="button" onClick={borrar}>Salir del ejemplo</button>
+          ) : confirmandoBorrar ? (
+            <span className="confirmar" role="group" aria-label="Confirmar borrado">
+              <span>¿Borrar del dispositivo? Tu Excel no se toca.</span>
+              <button type="button" className="peligro" onClick={borrar}>Sí, borrar</button>
+              <button type="button" onClick={() => setConfirmandoBorrar(false)}>No</button>
+            </span>
+          ) : (
+            <button type="button" className="peligro" onClick={() => setConfirmandoBorrar(true)}>Borrar</button>
+          )}
         </div>
       </header>
 
