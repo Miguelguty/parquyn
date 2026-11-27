@@ -92,44 +92,70 @@ function fechaValida(y: number, m: number, d: number): string | null {
   return `${y}-${dos(m)}-${dos(d)}`
 }
 
-/** Devuelve la fecha como "AAAA-MM-DD", o null si no se entiende. Las fechas
- *  de texto se leen con el día primero (3/12/2026 = 3 de diciembre). */
-export function parseFecha(v: unknown): string | null {
+export type FechaLeida = {
+  /** AAAA-MM-DD */
+  fecha: string
+  /** La fecha no traía año y se usó el año por defecto. */
+  sinAño: boolean
+}
+
+const DIA_AL_INICIO = /^(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo|lun|mar|mie|jue|vie|sab|dom)\.?,?\s+/
+
+/** Lee una fecha. Las fechas de texto se leen con el día primero (3/12/2026 = 3 de diciembre).
+ *  Si la fecha no trae año ("23 de noviembre", "23/11") y se da `añoPorDefecto`, usa ese año y lo marca;
+ *  sin `añoPorDefecto` no inventa ninguno. */
+export function leerFecha(v: unknown, añoPorDefecto?: number): FechaLeida | null {
   if (v === null || v === undefined || v === '') return null
+  const con = (fecha: string | null): FechaLeida | null => (fecha ? { fecha, sinAño: false } : null)
+  const sin = (m: number, d: number): FechaLeida | null => {
+    if (añoPorDefecto === undefined) return null
+    const fecha = fechaValida(añoPorDefecto, m, d)
+    return fecha ? { fecha, sinAño: true } : null
+  }
 
   if (v instanceof Date) {
     if (Number.isNaN(v.getTime())) return null
     // Excel entrega las fechas como medianoche UTC: se leen con métodos UTC
     // para que la zona horaria del equipo no las corra de día.
-    return fechaValida(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate())
+    return con(fechaValida(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate()))
   }
 
   if (typeof v === 'number') {
     if (!Number.isFinite(v) || v < 1 || v > 2958465) return null
     const dt = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000)
-    return fechaValida(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate())
+    return con(fechaValida(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()))
   }
 
-  const s = norm(v)
+  const s = norm(v).replace(DIA_AL_INICIO, '')
   if (!s) return null
 
   let m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[t ].*)?$/.exec(s)
-  if (m) return fechaValida(+m[1], +m[2], +m[3])
+  if (m) return con(fechaValida(+m[1], +m[2], +m[3]))
 
   m = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})$/.exec(s)
   if (m) {
     const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]
-    return fechaValida(y, +m[2], +m[1])
+    return con(fechaValida(y, +m[2], +m[1]))
   }
 
-  m = /^(\d{1,2})\s*(?:de\s+)?([a-z]+)\.?\s*(?:de(?:l)?\s+)?(\d{4})$/.exec(s)
+  m = /^(\d{1,2})[/\-.](\d{1,2})$/.exec(s)
+  if (m) return sin(+m[2], +m[1])
+
+  m = /^(\d{1,2})\s*(?:de\s+)?([a-z]+)\.?(?:\s*(?:de(?:l)?\s+)?(\d{4}))?$/.exec(s)
   if (m) {
     const palabra = m[2] === 'setiembre' ? 'septiembre' : m[2]
     const idx = palabra.length >= 3 ? MESES.findIndex((n) => n.startsWith(palabra)) : -1
-    if (idx >= 0) return fechaValida(+m[3], idx + 1, +m[1])
+    if (idx < 0) return null
+    return m[3] ? con(fechaValida(+m[3], idx + 1, +m[1])) : sin(idx + 1, +m[1])
   }
 
   return null
+}
+
+/** Devuelve la fecha como "AAAA-MM-DD", o null si no se entiende o no trae año. */
+export function parseFecha(v: unknown): string | null {
+  const r = leerFecha(v)
+  return r ? r.fecha : null
 }
 
 function aHHMM(totalMin: number): string {
@@ -222,7 +248,10 @@ function avisoDia(escrito: string, fecha: string, calculado: string): string | n
 }
 
 /** Punto de entrada: recibe las filas tal como salen del Excel (primera hoja). */
-export function filasAActividades(filas: unknown[][]): Resultado {
+export function filasAActividades(filas: unknown[][], opciones: { añoPorDefecto?: number } = {}): Resultado {
+  // Las fechas sin año ("23 de noviembre") se leen con el año actual y la fila lleva un aviso.
+  const añoPorDefecto = opciones.añoPorDefecto ?? new Date().getFullYear()
+
   if (filas.length === 0) {
     return { actividades: [], problemas: [{ fila: 1, mensaje: 'El archivo está vacío.' }], sinFecha: [] }
   }
@@ -279,7 +308,8 @@ export function filasAActividades(filas: unknown[][]): Resultado {
     if (filaVacia(fila)) continue
     const nFila = i + 1
 
-    const fecha = parseFecha(celda(fila, 'fecha'))
+    const lectura = leerFecha(celda(fila, 'fecha'), añoPorDefecto)
+    const fecha = lectura ? lectura.fecha : null
     if (!fecha) {
       const crudo = celda(fila, 'fecha')
       const t = crudo instanceof Date ? crudo.toISOString() : texto(crudo)
@@ -291,13 +321,16 @@ export function filasAActividades(filas: unknown[][]): Resultado {
       }
       problemas.push({
         fila: nFila,
-        mensaje: t ? `No pude leer la fecha "${t}".` : 'La fecha está vacía.',
+        mensaje: t
+          ? `No pude leer la fecha "${t}". Escríbela como 3/12/2026 o 3 de diciembre de 2026.`
+          : 'La fecha está vacía.',
       })
       continue
     }
 
     const dia = diaDeLaSemana(fecha)
     const avisos: string[] = []
+    if (lectura?.sinAño) avisos.push(`La fecha no traía año; usé ${añoPorDefecto}.`)
 
     const diaEscrito = texto(celda(fila, 'dia'))
     const a = diaEscrito ? avisoDia(diaEscrito, fecha, dia) : null

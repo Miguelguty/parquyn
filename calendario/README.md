@@ -18,6 +18,8 @@ columnas; solo **Fecha** es obligatoria y el resto son opcionales:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 
 - **Fecha** acepta celdas de fecha de Excel o texto con el día primero (`3/12/2026`, `3 de diciembre de 2026`, `2026-12-03`).
+  También acepta el día de la semana al inicio (`lunes 23 de noviembre`). **Si no trae año** (`23 de noviembre`,
+  `23 nov`, `23/11`), usa el año actual y la fila lleva el aviso "La fecha no traía año; usé AAAA".
 - **Día** es el día de la semana. Se calcula a partir de la fecha; si lo que escribiste no coincide, se muestra un aviso.
 - **Hora** acepta celdas de hora de Excel o texto: `9:00`, `14:30`, `3 PM`, `8:00 AM`, rangos como `9:00 a 11:30` o `10:00 – 12:00`.
   Si no se entiende, la actividad se muestra igual con el texto original y un aviso.

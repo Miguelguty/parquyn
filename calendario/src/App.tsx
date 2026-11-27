@@ -55,6 +55,7 @@ export default function App() {
 
   async function procesar(archivo: File) {
     setError(null)
+    setMensaje(null)
     setCargando(true)
     try {
       const r = await leerExcel(archivo)

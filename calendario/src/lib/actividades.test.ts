@@ -420,3 +420,63 @@ describe('quitarFecha', () => {
     }).nueva).toBe(true)
   })
 })
+
+import { leerFecha } from './actividades'
+
+describe('fechas escritas sin año', () => {
+  it('parseFecha sigue exigiendo el año (no adivina)', () => {
+    expect(parseFecha('23 de noviembre')).toBeNull()
+    expect(parseFecha('23/11')).toBeNull()
+  })
+  it('leerFecha usa el año indicado y avisa que lo puso', () => {
+    expect(leerFecha('23 de noviembre', 2026)).toEqual({ fecha: '2026-11-23', sinAño: true })
+    expect(leerFecha('23 nov', 2026)).toEqual({ fecha: '2026-11-23', sinAño: true })
+    expect(leerFecha('23/11', 2026)).toEqual({ fecha: '2026-11-23', sinAño: true })
+    expect(leerFecha('5 de enero', 2027)).toEqual({ fecha: '2027-01-05', sinAño: true })
+  })
+  it('si no se indica un año por defecto, no inventa uno', () => {
+    expect(leerFecha('23 de noviembre')).toBeNull()
+  })
+  it('acepta el día de la semana al principio', () => {
+    expect(leerFecha('lunes 23 de noviembre', 2026)).toEqual({ fecha: '2026-11-23', sinAño: true })
+    expect(leerFecha('Lunes, 23 de noviembre de 2026', 2000)).toEqual({ fecha: '2026-11-23', sinAño: false })
+    expect(leerFecha('mié 25 nov', 2026)).toEqual({ fecha: '2026-11-25', sinAño: true })
+  })
+  it('una fecha con año nunca queda marcada como sin año', () => {
+    expect(leerFecha('3 de diciembre de 2026', 2000)).toEqual({ fecha: '2026-12-03', sinAño: false })
+    expect(leerFecha('3/12/2026', 2000)).toEqual({ fecha: '2026-12-03', sinAño: false })
+    expect(leerFecha(utc(2026, 12, 3), 2000)).toEqual({ fecha: '2026-12-03', sinAño: false })
+  })
+  it('rechaza lo que no existe aunque falte el año', () => {
+    expect(leerFecha('31 de febrero', 2026)).toBeNull()
+    expect(leerFecha('30 de noviembrr', 2026)).toBeNull()
+    expect(leerFecha('pronto', 2026)).toBeNull()
+  })
+
+  const ENC3 = ['Dependencia', 'Fecha', 'Día', 'Hora']
+  it('al leer el Excel, las filas sin año entran con aviso del año usado', () => {
+    const r = filasAActividades(
+      [ENC3, ['LOCALIDAD 1', '23 de noviembre', 'Lunes', '10:00 – 12:00'], ['LOCALIDAD 2', '24 de noviembre', '', '']],
+      { añoPorDefecto: 2026 },
+    )
+    expect(r.problemas).toEqual([])
+    expect(r.actividades.map((a) => a.fecha)).toEqual(['2026-11-23', '2026-11-24'])
+    expect(r.actividades[0].avisos).toEqual(['La fecha no traía año; usé 2026.'])
+    expect(r.actividades[0].dia).toBe('lunes')
+  })
+  it('el aviso del año se suma al del día mal escrito, sin taparlo', () => {
+    const r = filasAActividades([ENC3, ['X', '23 de noviembre', 'Martes', '']], { añoPorDefecto: 2026 })
+    expect(r.actividades[0].avisos).toHaveLength(2)
+    expect(r.actividades[0].avisos[0]).toMatch(/año/)
+    expect(r.actividades[0].avisos[1]).toMatch(/martes/i)
+  })
+  it('con año explícito no hay aviso', () => {
+    const r = filasAActividades([ENC3, ['X', '23 de noviembre de 2026', '', '']], { añoPorDefecto: 2030 })
+    expect(r.actividades[0].avisos).toEqual([])
+    expect(r.actividades[0].fecha).toBe('2026-11-23')
+  })
+  it('una fecha ilegible explica cómo escribirla', () => {
+    const r = filasAActividades([ENC3, ['X', 'la otra semana', '', '']], { añoPorDefecto: 2026 })
+    expect(r.problemas[0].mensaje).toMatch(/3\/12\/2026/)
+  })
+})

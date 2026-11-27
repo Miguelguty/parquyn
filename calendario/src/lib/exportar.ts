@@ -92,7 +92,7 @@ const ENCABEZADOS_FORMATO = ['Dependencia', 'Fecha', 'Día', 'Hora', 'Lugar', 'E
 /** Filas de la hoja de instrucciones: columna, qué poner, ejemplo. */
 const INSTRUCCIONES: [string, string, string][] = [
   ['Dependencia', 'Nombre de la dependencia. Si la dejas vacía, la actividad se muestra como "(sin dependencia)".', 'Secretaría de Educación'],
-  ['Fecha', 'Fecha de la actividad. Escríbela como 3/12/2026 (día primero) o 3 de diciembre de 2026. Si todavía no tiene fecha, déjala vacía: la actividad queda en la lista "Sin fecha" hasta que la programes (necesita al menos la dependencia).', '3/12/2026'],
+  ['Fecha', 'Fecha de la actividad. Escríbela como 3/12/2026 (día primero) o 3 de diciembre de 2026. Si no escribes el año (23 de noviembre), la app usa el año actual y te lo avisa. Si todavía no tiene fecha, déjala vacía: la actividad queda en la lista "Sin fecha" hasta que la programes (necesita al menos la dependencia).', '3/12/2026'],
   ['Día', 'Opcional. La app lo calcula a partir de la fecha. Si lo escribes y no coincide, te avisa.', 'Jueves'],
   ['Hora', 'Una hora (9:00, 14:30, 3 PM) o un rango.', '10:00 – 12:00'],
   ['Lugar', 'Opcional.', 'Auditorio principal'],
