@@ -5,6 +5,8 @@ import { MesView } from './components/MesView'
 import { PendientesPanel } from './components/PendientesPanel'
 import { aplicarCambios, asignarFecha, crearActividad, ordenar, type Actividad, type Cambios } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
+import { descargar } from './lib/descargar'
+import { crearExcel, nombreArchivo } from './lib/exportar'
 import { MESES, hoyISO } from './lib/formato'
 import { resultadoDemo } from './lib/demo'
 import { leerExcel } from './lib/leerExcel'
@@ -45,6 +47,7 @@ export default function App() {
   const [pendiente, setPendiente] = useState<File | null>(null)
   const [agregando, setAgregando] = useState(false)
   const [fechaNueva, setFechaNueva] = useState(hoy)
+  const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [arrastrando, setArrastrando] = useState(false)
@@ -103,6 +106,27 @@ export default function App() {
     // Muestra dónde quedó la actividad si cambió de fecha.
     setSeleccionado(nueva.fecha)
     setCursor({ año: +nueva.fecha.slice(0, 4), mes: +nueva.fecha.slice(5, 7) - 1 })
+  }
+
+  async function exportar() {
+    if (!datos) return
+    setMensaje(null)
+    const nombre = nombreArchivo(hoy)
+    try {
+      const archivo = await crearExcel(datos.actividades, datos.sinFecha ?? [])
+      const r = await descargar(nombre, archivo)
+      if (r === 'guardado') {
+        setMensaje({ tipo: 'ok', texto: `Listo: ${nombre}. Es un Excel completo con tus cambios; si lo vuelves a cargar aquí no se pierde nada.` })
+      } else if (r === 'cancelado') {
+        setMensaje({ tipo: 'error', texto: 'No se guardó el archivo.' })
+      } else if (r === 'no-disponible') {
+        setMensaje({ tipo: 'error', texto: 'Este visor no permite guardar archivos. Abre la página en el navegador de tu computador para exportar.' })
+      } else {
+        setMensaje({ tipo: 'error', texto: 'No se pudo guardar el archivo. Intenta de nuevo.' })
+      }
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'No se pudo generar el Excel. Intenta de nuevo.' })
+    }
   }
 
   function alternarAgregar() {
@@ -261,6 +285,13 @@ export default function App() {
           <button type="button" className={datos.esEjemplo ? 'primario' : undefined} onClick={() => entrada.current?.click()} disabled={cargando}>
             {cargando ? 'Leyendo…' : datos.esEjemplo ? 'Cargar mi Excel' : 'Cargar otro Excel'}
           </button>
+          <button
+            type="button"
+            onClick={() => void exportar()}
+            disabled={datos.actividades.length + (datos.sinFecha?.length ?? 0) === 0}
+          >
+            Exportar a Excel
+          </button>
           {datos.esEjemplo ? (
             <button type="button" onClick={borrar}>Salir del ejemplo</button>
           ) : confirmandoBorrar ? (
@@ -276,6 +307,11 @@ export default function App() {
       </header>
 
       {error && <p role="alert" className="error">{error}</p>}
+      {mensaje && (
+        <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={mensaje.tipo === 'error' ? 'error' : 'exito'}>
+          {mensaje.texto}
+        </p>
+      )}
 
       {pendiente && (
         <div role="alert" className="aviso-carga">
@@ -287,6 +323,7 @@ export default function App() {
             <button type="button" className="peligro" onClick={() => void procesar(pendiente)}>
               Cargar y perder los cambios
             </button>
+            <button type="button" onClick={() => void exportar()}>Exportar antes</button>
             <button type="button" onClick={() => setPendiente(null)}>No cargar</button>
           </div>
         </div>

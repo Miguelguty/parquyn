@@ -30,6 +30,19 @@ columnas; solo **Fecha** es obligatoria y el resto son opcionales:
 - Los cambios se guardan solo en el dispositivo; **no se escriben de vuelta en el Excel**. Por eso, antes de cargar
   otro Excel, la app avisa si hay cambios (editadas, canceladas o nuevas) que se perderían.
 
+## Exportar a Excel
+
+**Exportar a Excel** descarga un `.xlsx` con todo el calendario tal como está ahora (incluye lo editado, lo agregado,
+lo cancelado y lo asignado), en el mismo formato que se carga:
+
+- Columnas: Dependencia, Fecha (celdas de fecha reales), Día, Hora, Lugar, Enlace, Teléfono, Estado, Observaciones.
+  Lugar, Enlace y Teléfono solo aparecen si alguna fila los usa; **Estado** ("Programada" o "Cancelada") solo si hay canceladas.
+- Las filas sin fecha van al final, bajo el título "Sin fecha por ahora (fuera de este cronograma)".
+- **Se puede volver a cargar sin perder nada** (hay pruebas que exportan, releen el archivo y comparan).
+- Antes de reemplazar un Excel con cambios sin exportar, la app ofrece "Exportar antes".
+- Dentro de claude.ai la descarga usa la capacidad `downloads` de los artefactos (la página la declara al publicarse);
+  en un navegador normal es una descarga común.
+
 ## Comandos
 
 ```bash

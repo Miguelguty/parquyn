@@ -178,3 +178,5 @@ textarea { resize: vertical; }
 .sin-fecha { background: var(--superficie); border: 1px solid var(--borde); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; }
 .sin-fecha summary { cursor: pointer; font-weight: 600; }
 .sin-fecha .actividad { background: var(--fondo); }
+
+.exito { background: var(--acento-suave); color: var(--texto); padding: 10px 12px; border-radius: 8px; }

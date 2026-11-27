@@ -71,6 +71,9 @@ export function ordenar(lista: Actividad[]): Actividad[] {
   )
 }
 
+/** Título de la sección de filas sin fecha. Al leer se ignora cualquier título que empiece por "Sin fecha". */
+export const TITULO_SIN_FECHA = 'Sin fecha por ahora (fuera de este cronograma)'
+
 const sinTildes = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '')
 const norm = (v: unknown) => sinTildes(String(v ?? '')).toLowerCase().trim().replace(/\s+/g, ' ')
 const dos = (n: number) => String(n).padStart(2, '0')
@@ -186,7 +189,7 @@ export function parseHora(v: unknown): { inicio: string; fin: string | null } | 
   return null
 }
 
-type Campo = 'dependencia' | 'fecha' | 'dia' | 'hora' | 'lugar' | 'enlace' | 'telefono' | 'observacion'
+type Campo = 'dependencia' | 'fecha' | 'dia' | 'hora' | 'lugar' | 'enlace' | 'telefono' | 'estado' | 'observacion'
 
 function campoDeEncabezado(h: unknown): Campo | null {
   const n = norm(h)
@@ -198,6 +201,7 @@ function campoDeEncabezado(h: unknown): Campo | null {
   if (n.startsWith('lugar') || n.startsWith('ubicacion')) return 'lugar'
   if (n.startsWith('tel') || n.startsWith('celular')) return 'telefono'
   if (n.startsWith('enlace')) return 'enlace'
+  if (n.startsWith('estado')) return 'estado'
   if (n.startsWith('observacion') || n.startsWith('nota')) return 'observacion'
   return null
 }
@@ -300,7 +304,8 @@ export function filasAActividades(filas: unknown[][]): Resultado {
     const c = comunes(fila)
     if (c.horaTexto) avisos.push(`No entendí la hora "${c.horaTexto}"; la dejé como texto.`)
 
-    actividades.push({ id: `fila-${nFila}`, fila: nFila, fecha, dia, ...c, avisos })
+    const cancelada = norm(celda(fila, 'estado')).startsWith('cancel')
+    actividades.push({ id: `fila-${nFila}`, fila: nFila, fecha, dia, ...c, avisos, ...(cancelada && { cancelada: true }) })
   }
 
   return { actividades: ordenar(actividades), problemas, sinFecha }
