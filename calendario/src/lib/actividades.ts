@@ -16,6 +16,8 @@ export type Actividad = {
   horaFin: string | null
   /** Texto original de la hora cuando no se pudo entender. */
   horaTexto: string
+  /** Dónde es (columna "Lugar"). Puede faltar en datos guardados con una versión anterior. */
+  lugar?: string
   enlace: string
   telefono: string
   observacion: string
@@ -30,7 +32,22 @@ export type Actividad = {
 }
 
 export type Problema = { fila: number; mensaje: string }
-export type Resultado = { actividades: Actividad[]; problemas: Problema[] }
+
+/** Fila del Excel con dependencia pero sin fecha: está por programar. */
+export type Pendiente = {
+  id: string
+  fila: number
+  dependencia: string
+  hora: string | null
+  horaFin: string | null
+  horaTexto: string
+  lugar: string
+  enlace: string
+  telefono: string
+  observacion: string
+}
+
+export type Resultado = { actividades: Actividad[]; problemas: Problema[]; sinFecha: Pendiente[] }
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
 const MESES = [
@@ -169,7 +186,7 @@ export function parseHora(v: unknown): { inicio: string; fin: string | null } | 
   return null
 }
 
-type Campo = 'dependencia' | 'fecha' | 'dia' | 'hora' | 'enlace' | 'telefono' | 'observacion'
+type Campo = 'dependencia' | 'fecha' | 'dia' | 'hora' | 'lugar' | 'enlace' | 'telefono' | 'observacion'
 
 function campoDeEncabezado(h: unknown): Campo | null {
   const n = norm(h)
@@ -178,6 +195,7 @@ function campoDeEncabezado(h: unknown): Campo | null {
   if (n.startsWith('fecha')) return 'fecha'
   if (n.startsWith('dia')) return 'dia'
   if (n.startsWith('hora')) return 'hora'
+  if (n.startsWith('lugar') || n.startsWith('ubicacion')) return 'lugar'
   if (n.startsWith('tel') || n.startsWith('celular')) return 'telefono'
   if (n.startsWith('enlace')) return 'enlace'
   if (n.startsWith('observacion') || n.startsWith('nota')) return 'observacion'
@@ -200,7 +218,7 @@ function avisoDia(escrito: string, fecha: string, calculado: string): string | n
 /** Punto de entrada: recibe las filas tal como salen del Excel (primera hoja). */
 export function filasAActividades(filas: unknown[][]): Resultado {
   if (filas.length === 0) {
-    return { actividades: [], problemas: [{ fila: 1, mensaje: 'El archivo está vacío.' }] }
+    return { actividades: [], problemas: [{ fila: 1, mensaje: 'El archivo está vacío.' }], sinFecha: [] }
   }
 
   // El encabezado suele ser la fila 1, pero se busca en las primeras 10 por si hay un título arriba.
@@ -218,6 +236,7 @@ export function filasAActividades(filas: unknown[][]): Resultado {
       problemas: [
         { fila: 1, mensaje: `No encontré la columna "Fechas". Las columnas que vi son: ${vistas}.` },
       ],
+      sinFecha: [],
     }
   }
 
@@ -231,6 +250,23 @@ export function filasAActividades(filas: unknown[][]): Resultado {
 
   const actividades: Actividad[] = []
   const problemas: Problema[] = []
+  const sinFecha: Pendiente[] = []
+
+  /** Lo que tienen en común una actividad y una fila sin fecha. */
+  const comunes = (fila: unknown[]) => {
+    const horaCruda = celda(fila, 'hora')
+    const h = parseHora(horaCruda)
+    return {
+      dependencia: texto(celda(fila, 'dependencia')),
+      hora: h ? h.inicio : null,
+      horaFin: h ? h.fin : null,
+      horaTexto: !h ? texto(horaCruda) : '',
+      lugar: texto(celda(fila, 'lugar')),
+      enlace: texto(celda(fila, 'enlace')),
+      telefono: texto(celda(fila, 'telefono')),
+      observacion: texto(celda(fila, 'observacion')),
+    }
+  }
 
   for (let i = filaEnc + 1; i < filas.length; i++) {
     const fila = filas[i]
@@ -241,6 +277,12 @@ export function filasAActividades(filas: unknown[][]): Resultado {
     if (!fecha) {
       const crudo = celda(fila, 'fecha')
       const t = crudo instanceof Date ? crudo.toISOString() : texto(crudo)
+      const c = comunes(fila)
+      if (t === '' && c.dependencia) {
+        // Un título de sección ("Sin fecha por ahora…") no es una actividad.
+        if (!norm(c.dependencia).startsWith('sin fecha')) sinFecha.push({ id: `fila-${nFila}`, fila: nFila, ...c })
+        continue
+      }
       problemas.push({
         fila: nFila,
         mensaje: t ? `No pude leer la fecha "${t}".` : 'La fecha está vacía.',
@@ -255,31 +297,13 @@ export function filasAActividades(filas: unknown[][]): Resultado {
     const a = diaEscrito ? avisoDia(diaEscrito, fecha, dia) : null
     if (a) avisos.push(a)
 
-    const horaCruda = celda(fila, 'hora')
-    const h = parseHora(horaCruda)
-    let horaTexto = ''
-    if (!h && texto(horaCruda) !== '') {
-      horaTexto = texto(horaCruda)
-      avisos.push(`No entendí la hora "${horaTexto}"; la dejé como texto.`)
-    }
+    const c = comunes(fila)
+    if (c.horaTexto) avisos.push(`No entendí la hora "${c.horaTexto}"; la dejé como texto.`)
 
-    actividades.push({
-      id: `fila-${nFila}`,
-      fila: nFila,
-      dependencia: texto(celda(fila, 'dependencia')),
-      fecha,
-      dia,
-      hora: h ? h.inicio : null,
-      horaFin: h ? h.fin : null,
-      horaTexto,
-      enlace: texto(celda(fila, 'enlace')),
-      telefono: texto(celda(fila, 'telefono')),
-      observacion: texto(celda(fila, 'observacion')),
-      avisos,
-    })
+    actividades.push({ id: `fila-${nFila}`, fila: nFila, fecha, dia, ...c, avisos })
   }
 
-  return { actividades: ordenar(actividades), problemas }
+  return { actividades: ordenar(actividades), problemas, sinFecha }
 }
 
 /** Lo que la persona puede cambiar de una actividad desde la app. */
@@ -290,6 +314,7 @@ export type Cambios = {
   /** HH:MM o null. */
   hora: string | null
   horaFin: string | null
+  lugar: string
   enlace: string
   telefono: string
   observacion: string
@@ -298,6 +323,7 @@ export type Cambios = {
 /** Devuelve un mensaje de error en español, o null si los cambios son válidos. */
 export function validarCambios(c: Cambios, opciones: { dependenciaObligatoria?: boolean } = {}): string | null {
   if (opciones.dependenciaObligatoria && !c.dependencia.trim()) return 'Escribe la dependencia.'
+  if (!c.fecha) return 'Elige una fecha.'
   if (!parseFecha(c.fecha)) return 'La fecha no es válida.'
   if (c.horaFin && !c.hora) return 'Pon la hora inicial antes de la hora final.'
   if (c.hora && c.horaFin && c.horaFin <= c.hora) return 'La hora final debe ser después de la inicial.'
@@ -312,6 +338,7 @@ function camposDe(c: Cambios, fechaRespaldo: string) {
     dia: diaDeLaSemana(fecha),
     hora: c.hora,
     horaFin: c.hora ? c.horaFin : null,
+    lugar: c.lugar.trim(),
     enlace: c.enlace.trim(),
     telefono: c.telefono.trim(),
     observacion: c.observacion.trim(),
@@ -333,4 +360,9 @@ export function aplicarCambios(a: Actividad, c: Cambios): Actividad {
 /** Crea una actividad nueva (que no viene del Excel). `fila` solo sirve para desempatar el orden. */
 export function crearActividad(c: Cambios, id: string, fila: number): Actividad {
   return { id, fila, horaTexto: '', ...camposDe(c, c.fecha), nueva: true }
+}
+
+/** Le pone fecha a una fila que estaba sin fecha: pasa a ser una actividad del calendario. */
+export function asignarFecha(p: Pendiente, c: Cambios): Actividad {
+  return aplicarCambios({ ...p, fecha: c.fecha, dia: '', avisos: [] }, c)
 }

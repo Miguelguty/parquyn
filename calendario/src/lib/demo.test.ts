@@ -9,6 +9,12 @@ describe('resultadoDemo', () => {
     expect(r.problemas).toEqual([])
     expect(r.actividades).toHaveLength(6)
   })
+  it('deja las dependencias sin fecha en su propia lista, sin tratarlas como error', () => {
+    expect(r.sinFecha.map((p) => p.dependencia)).toEqual(['Secretaría del Interior', 'Control Urbano'])
+  })
+  it('lee el lugar', () => {
+    expect(r.actividades.find((a) => a.dependencia === 'Hospital Regional')?.lugar).toBe('Sala de juntas')
+  })
   it('todas caen después de hoy', () => {
     expect(r.actividades.every((a) => a.fecha > '2026-11-27')).toBe(true)
   })

@@ -6,6 +6,7 @@ type Ejemplo = {
   /** Días a partir de hoy. */
   en: number
   hora: string
+  lugar?: string
   dependencia: string
   enlace: string
   telefono: string
@@ -15,9 +16,9 @@ type Ejemplo = {
 }
 
 const EJEMPLOS: Ejemplo[] = [
-  { en: 1, hora: '9:00', dependencia: 'Secretaría de Educación', enlace: 'María Pérez', telefono: '300 123 4567', observacion: 'Capacitación que doy yo. Llevar proyector.' },
+  { en: 1, hora: '9:00', lugar: 'Auditorio principal', dependencia: 'Secretaría de Educación', enlace: 'María Pérez', telefono: '300 123 4567', observacion: 'Capacitación que doy yo. Llevar proyector.' },
   { en: 1, hora: '2:30 PM', dependencia: 'Alcaldía Municipal', enlace: 'Juan Gómez', telefono: '310 555 0101', observacion: 'Reunión de seguimiento' },
-  { en: 3, hora: '8:00 AM a 12:00 PM', dependencia: 'Hospital Regional', enlace: 'Ana Ríos', telefono: '320 777 8899', observacion: 'Capacitación que recibo' },
+  { en: 3, hora: '8:00 AM a 12:00 PM', lugar: 'Sala de juntas', dependencia: 'Hospital Regional', enlace: 'Ana Ríos', telefono: '320 777 8899', observacion: 'Capacitación que recibo' },
   { en: 6, hora: '15:00', dependencia: 'Gobernación', enlace: 'Luis Mora', telefono: '311 222 3344', observacion: 'Reunión de coordinación', diaMalEscrito: true },
   { en: 9, hora: '10:00', dependencia: 'Universidad Regional', enlace: 'Sofía Herrera', telefono: '312 440 9087', observacion: 'Capacitación que doy yo' },
   { en: 14, hora: '9:30', dependencia: 'Personería Municipal', enlace: 'Carlos Díaz', telefono: '315 888 0022', observacion: 'Reunión' },
@@ -25,13 +26,18 @@ const EJEMPLOS: Ejemplo[] = [
 
 /** Filas con la misma forma que salen de un Excel, con fechas cercanas a `hoy`. */
 export function filasDemo(hoy: Date = new Date()): unknown[][] {
-  const encabezado = ['Dependencia', 'Fechas', 'Días', 'Hora', 'Enlace', 'Teléfono en enlace', 'Observación']
+  const encabezado = ['Dependencia', 'Fechas', 'Días', 'Hora', 'Lugar', 'Enlace', 'Teléfono en enlace', 'Observación']
   const filas = EJEMPLOS.map((e) => {
     const f = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + e.en))
     const dia = DIAS[(f.getUTCDay() + (e.diaMalEscrito ? 1 : 0)) % 7]
-    return [e.dependencia, f, dia, e.hora, e.enlace, e.telefono, e.observacion]
+    return [e.dependencia, f, dia, e.hora, e.lugar ?? null, e.enlace, e.telefono, e.observacion]
   })
-  return [encabezado, ...filas]
+  // Dependencias que todavía no tienen fecha (como la sección "Sin fecha" de un cronograma real).
+  const sinFecha = [
+    ['Secretaría del Interior', null, null, null, null, null, null, 'Por programar'],
+    ['Control Urbano', null, null, '10:00 – 12:00', null, null, null, 'Por programar'],
+  ]
+  return [encabezado, ...filas, ...sinFecha]
 }
 
 export function resultadoDemo(hoy?: Date): Resultado {

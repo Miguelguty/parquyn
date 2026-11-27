@@ -38,7 +38,7 @@ export function FormActividad({
   }
 
   const id = (k: keyof Cambios) => `${idBase}-${k}`
-  const texto = (k: 'dependencia' | 'enlace' | 'telefono' | 'observacion') => ({
+  const texto = (k: 'dependencia' | 'lugar' | 'enlace' | 'telefono' | 'observacion') => ({
     id: id(k),
     value: form[k],
     onChange: (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value }),
@@ -82,6 +82,8 @@ export function FormActividad({
       </div>
       {horaOriginal && !form.hora && <p className="muted">En el Excel la hora decía "{horaOriginal}".</p>}
 
+      <label htmlFor={id('lugar')}>Lugar</label>
+      <input type="text" {...texto('lugar')} />
       <label htmlFor={id('enlace')}>Enlace (persona de contacto)</label>
       <input type="text" {...texto('enlace')} />
       <label htmlFor={id('telefono')}>Teléfono</label>

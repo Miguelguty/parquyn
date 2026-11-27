@@ -14,6 +14,7 @@ const desde = (a: Actividad): Cambios => ({
   fecha: a.fecha,
   hora: a.hora,
   horaFin: a.horaFin,
+  lugar: a.lugar ?? '',
   enlace: a.enlace,
   telefono: a.telefono,
   observacion: a.observacion,
@@ -52,6 +53,7 @@ export function ActividadItem({ a, onGuardar, onCancelada }: Props) {
           {a.nueva && <span className="estado nueva">Nueva</span>}
           {a.editada && !a.nueva && <span className="estado edit">Editada</span>}
         </h3>
+        {a.lugar && <p>Lugar: {a.lugar}</p>}
         {(a.enlace || a.telefono) && (
           <p>
             {a.enlace && <span>{a.enlace}</span>}

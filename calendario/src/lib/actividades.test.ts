@@ -188,6 +188,7 @@ const cambiosDe = (a: Actividad, extra: Partial<Cambios> = {}): Cambios => ({
   fecha: a.fecha,
   hora: a.hora,
   horaFin: a.horaFin,
+  lugar: a.lugar ?? '',
   enlace: a.enlace,
   telefono: a.telefono,
   observacion: a.observacion,
@@ -288,5 +289,82 @@ describe('crearActividad', () => {
   })
   it('sin hora inicial no guarda hora final', () => {
     expect(crearActividad(cambiosDe(base, { hora: null, horaFin: '11:00' }), 'n', 1).horaFin).toBeNull()
+  })
+})
+
+import { asignarFecha } from './actividades'
+
+// Forma del cronograma real: sin Enlace/Teléfono, con Lugar, y una sección "Sin fecha por ahora".
+const ENC2 = ['Dependencia', 'Fecha', 'Día', 'Hora', 'Lugar', 'Observaciones']
+const cronograma = () =>
+  filasAActividades([
+    ENC2,
+    ['LOCALIDAD 1', utc(2026, 12, 1), 'Martes', '10:00 – 12:00', 'Auditorio', 'Fecha original: 10/12'],
+    ['SECRETARÍA DE HACIENDA', utc(2026, 12, 10), 'Jueves', '10:00 – 12:00', null, null],
+    [null, null, null, null, null, null],
+    ['Sin fecha por ahora (fuera de este cronograma)', null, null, null, null, null],
+    ['GEPM', null, null, null, null, null],
+    ['CONTROL URBANO', null, null, '10:00 – 12:00', 'Sede norte', 'Pendiente de confirmar'],
+  ])
+
+describe('cronograma real (Lugar y filas sin fecha)', () => {
+  it('lee la columna Lugar y las horas con rayita larga', () => {
+    const r = cronograma()
+    expect(r.actividades[0]).toMatchObject({ lugar: 'Auditorio', hora: '10:00', horaFin: '12:00', avisos: [] })
+    expect(r.actividades[1].lugar).toBe('')
+  })
+  it('manda a "sin fecha" las filas con dependencia pero sin fecha, sin tratarlas como error', () => {
+    const r = cronograma()
+    expect(r.problemas).toEqual([])
+    expect(r.sinFecha.map((p) => p.dependencia)).toEqual(['GEPM', 'CONTROL URBANO'])
+  })
+  it('ignora el título de la sección "Sin fecha por ahora"', () => {
+    expect(cronograma().sinFecha.some((p) => /sin fecha/i.test(p.dependencia))).toBe(false)
+  })
+  it('conserva en las filas sin fecha los datos que sí traen', () => {
+    expect(cronograma().sinFecha[1]).toMatchObject({
+      id: 'fila-7',
+      fila: 7,
+      hora: '10:00',
+      horaFin: '12:00',
+      lugar: 'Sede norte',
+      observacion: 'Pendiente de confirmar',
+    })
+  })
+  it('una fecha ilegible sigue siendo un problema, no una fila "sin fecha"', () => {
+    const r = filasAActividades([ENC2, ['X', 'pronto', '', '', '', '']])
+    expect(r.problemas).toHaveLength(1)
+    expect(r.sinFecha).toEqual([])
+  })
+  it('una fila sin dependencia ni fecha pero con otros datos es un problema', () => {
+    const r = filasAActividades([ENC2, [null, null, null, '9:00', null, 'huérfana']])
+    expect(r.problemas).toHaveLength(1)
+    expect(r.sinFecha).toEqual([])
+  })
+  it('todas las respuestas traen la lista sinFecha, incluso cuando falla', () => {
+    expect(filasAActividades([]).sinFecha).toEqual([])
+    expect(filasAActividades([['Dependencia', 'Hora']]).sinFecha).toEqual([])
+  })
+})
+
+describe('asignarFecha', () => {
+  const pendiente = cronograma().sinFecha[1]
+  const c: Cambios = {
+    dependencia: 'CONTROL URBANO',
+    fecha: '2026-12-22',
+    hora: '10:00',
+    horaFin: '12:00',
+    lugar: 'Sede norte',
+    enlace: '',
+    telefono: '',
+    observacion: 'Pendiente de confirmar',
+  }
+  it('convierte la fila sin fecha en una actividad con día calculado, conservando id y fila', () => {
+    const a = asignarFecha(pendiente, c)
+    expect(a).toMatchObject({ id: 'fila-7', fila: 7, fecha: '2026-12-22', dia: 'martes', lugar: 'Sede norte', editada: true })
+    expect(a.avisos).toEqual([])
+  })
+  it('exige elegir una fecha', () => {
+    expect(validarCambios({ ...c, fecha: '' })).toBe('Elige una fecha.')
   })
 })

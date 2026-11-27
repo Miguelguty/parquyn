@@ -1,9 +1,11 @@
-import type { Actividad, Problema } from './actividades'
+import type { Actividad, Pendiente, Problema } from './actividades'
 
 export type Datos = {
   nombre: string
   actividades: Actividad[]
   problemas: Problema[]
+  /** Filas del Excel sin fecha (puede faltar en datos guardados con una versión anterior). */
+  sinFecha?: Pendiente[]
   /** Datos de demostración: se muestran pero no se guardan en el dispositivo. */
   esEjemplo?: boolean
 }

@@ -2,7 +2,8 @@ import { useRef, useState, type DragEvent } from 'react'
 import { AgendaView } from './components/AgendaView'
 import { FormActividad } from './components/FormActividad'
 import { MesView } from './components/MesView'
-import { aplicarCambios, crearActividad, ordenar, type Actividad, type Cambios } from './lib/actividades'
+import { PendientesPanel } from './components/PendientesPanel'
+import { aplicarCambios, asignarFecha, crearActividad, ordenar, type Actividad, type Cambios } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
 import { MESES, hoyISO } from './lib/formato'
 import { resultadoDemo } from './lib/demo'
@@ -15,7 +16,7 @@ const ABRIR_CON_EJEMPLO = import.meta.env.VITE_ARTIFACT === '1'
 
 function datosEjemplo(): Datos {
   const r = resultadoDemo()
-  return { nombre: 'Datos de ejemplo', actividades: r.actividades, problemas: r.problemas, esEjemplo: true }
+  return { nombre: 'Datos de ejemplo', actividades: r.actividades, problemas: r.problemas, sinFecha: r.sinFecha, esEjemplo: true }
 }
 
 function primerDia(actividades: Actividad[], hoy: string): string | null {
@@ -54,7 +55,7 @@ export default function App() {
     setCargando(true)
     try {
       const r = await leerExcel(archivo)
-      const nuevo: Datos = { nombre: archivo.name, actividades: r.actividades, problemas: r.problemas }
+      const nuevo: Datos = { nombre: archivo.name, actividades: r.actividades, problemas: r.problemas, sinFecha: r.sinFecha }
       setDatos(nuevo)
       guardar(nuevo)
       setCursor(mesInicial(r.actividades, hoy))
@@ -63,7 +64,7 @@ export default function App() {
       setPendiente(null)
     } catch {
       setError(
-        'No pude abrir ese archivo. Tiene que ser un Excel .xlsx. Si es un .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.',
+        'No pude abrir ese archivo. Tiene que ser un Excel .xlsx o .xlsm. Si es un .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.',
       )
     } finally {
       setCargando(false)
@@ -123,6 +124,22 @@ export default function App() {
     setCursor({ año: +nueva.fecha.slice(0, 4), mes: +nueva.fecha.slice(5, 7) - 1 })
   }
 
+  function asignarAPendiente(id: string, cambios: Cambios) {
+    if (!datos) return
+    const pendiente = datos.sinFecha?.find((p) => p.id === id)
+    if (!pendiente) return
+    const actividad = asignarFecha(pendiente, cambios)
+    const nuevo: Datos = {
+      ...datos,
+      actividades: ordenar([...datos.actividades, actividad]),
+      sinFecha: (datos.sinFecha ?? []).filter((p) => p.id !== id),
+    }
+    setDatos(nuevo)
+    guardar(nuevo)
+    setSeleccionado(actividad.fecha)
+    setCursor({ año: +actividad.fecha.slice(0, 4), mes: +actividad.fecha.slice(5, 7) - 1 })
+  }
+
   function marcarCancelada(id: string, cancelada: boolean) {
     cambiar(id, (a) => ({ ...a, cancelada }))
   }
@@ -168,7 +185,7 @@ export default function App() {
     <input
       ref={entrada}
       type="file"
-      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12"
       hidden
       onChange={(e) => {
         const f = e.target.files?.[0]
@@ -193,7 +210,7 @@ export default function App() {
         >
           <p className="grande">Carga tu Excel y se arma el calendario</p>
           <button type="button" className="primario" onClick={() => entrada.current?.click()} disabled={cargando}>
-            {cargando ? 'Leyendo…' : 'Elegir archivo Excel (.xlsx)'}
+            {cargando ? 'Leyendo…' : 'Elegir archivo Excel (.xlsx o .xlsm)'}
           </button>
           <p className="muted">o suéltalo aquí</p>
           <p>
@@ -231,6 +248,7 @@ export default function App() {
             {canceladas > 0 && ` · ${canceladas} cancelada${canceladas === 1 ? '' : 's'}`}
             {editadas > 0 && ` · ${editadas} editada${editadas === 1 ? '' : 's'}`}
             {nuevas > 0 && ` · ${nuevas} nueva${nuevas === 1 ? '' : 's'}`}
+            {(datos.sinFecha?.length ?? 0) > 0 && ` · ${datos.sinFecha?.length} sin fecha`}
           </p>
           {datos.esEjemplo && (
             <p className="ejemplo">
@@ -311,6 +329,8 @@ export default function App() {
         )}
       </nav>
 
+      <PendientesPanel pendientes={datos.sinFecha ?? []} onAsignar={asignarAPendiente} />
+
       <div className="agregar">
         <button type="button" className={agregando ? undefined : 'primario'} onClick={alternarAgregar} aria-expanded={agregando}>
           {agregando ? 'Cerrar' : '+ Agregar actividad'}
@@ -325,6 +345,7 @@ export default function App() {
               fecha: fechaNueva,
               hora: null,
               horaFin: null,
+              lugar: '',
               enlace: '',
               telefono: '',
               observacion: '',

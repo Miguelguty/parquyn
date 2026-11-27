@@ -26,7 +26,7 @@ export function formatHora(hhmm: string): string {
   return `${h12}:${dos(m)} ${sufijo}`
 }
 
-export function textoHora(a: Actividad): string {
+export function textoHora(a: Pick<Actividad, 'hora' | 'horaFin' | 'horaTexto'>): string {
   if (a.hora) return a.horaFin ? `${formatHora(a.hora)} – ${formatHora(a.horaFin)}` : formatHora(a.hora)
   return a.horaTexto || 'Sin hora'
 }
