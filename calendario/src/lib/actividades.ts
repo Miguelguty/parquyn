@@ -45,6 +45,8 @@ export type Pendiente = {
   enlace: string
   telefono: string
   observacion: string
+  /** Se agregó a mano en la app: no viene del Excel. */
+  nueva?: boolean
 }
 
 export type Resultado = { actividades: Actividad[]; problemas: Problema[]; sinFecha: Pendiente[] }
@@ -370,4 +372,21 @@ export function crearActividad(c: Cambios, id: string, fila: number): Actividad 
 /** Le pone fecha a una fila que estaba sin fecha: pasa a ser una actividad del calendario. */
 export function asignarFecha(p: Pendiente, c: Cambios): Actividad {
   return aplicarCambios({ ...p, fecha: c.fecha, dia: '', avisos: [] }, c)
+}
+
+/** Devuelve una actividad programada a la lista "Sin fecha", conservando hora, lugar y demás datos. */
+export function quitarFecha(a: Actividad): Pendiente {
+  return {
+    id: a.id,
+    fila: a.fila,
+    dependencia: a.dependencia,
+    hora: a.hora,
+    horaFin: a.horaFin,
+    horaTexto: a.horaTexto,
+    lugar: a.lugar ?? '',
+    enlace: a.enlace,
+    telefono: a.telefono,
+    observacion: a.observacion,
+    ...(a.nueva && { nueva: true }),
+  }
 }

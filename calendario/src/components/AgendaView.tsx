@@ -18,9 +18,11 @@ type Props = {
   hoy: string
   onGuardar: (id: string, cambios: Cambios) => void
   onCancelada: (id: string, cancelada: boolean) => void
+  onQuitarFecha: (id: string) => void
+  onBorrar: (id: string) => void
 }
 
-export function AgendaView({ actividades, hoy, onGuardar, onCancelada }: Props) {
+export function AgendaView({ actividades, hoy, onGuardar, onCancelada, onQuitarFecha, onBorrar }: Props) {
   const [verPasadas, setVerPasadas] = useState(false)
   const proximas = actividades.filter((a) => a.fecha >= hoy)
   const pasadas = actividades.filter((a) => a.fecha < hoy)
@@ -42,7 +44,7 @@ export function AgendaView({ actividades, hoy, onGuardar, onCancelada }: Props) 
             {fecha === hoy && <span className="etiqueta">Hoy</span>}
           </h2>
           {lista.map((a) => (
-            <ActividadItem key={a.id} a={a} onGuardar={onGuardar} onCancelada={onCancelada} />
+            <ActividadItem key={a.id} a={a} onGuardar={onGuardar} onCancelada={onCancelada} onQuitarFecha={onQuitarFecha} onBorrar={onBorrar} />
           ))}
         </div>
       ))}

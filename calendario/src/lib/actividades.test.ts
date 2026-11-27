@@ -368,3 +368,55 @@ describe('asignarFecha', () => {
     expect(validarCambios({ ...c, fecha: '' })).toBe('Elige una fecha.')
   })
 })
+
+import { quitarFecha } from './actividades'
+
+describe('quitarFecha', () => {
+  const a: Actividad = {
+    ...base,
+    id: 'fila-9',
+    fila: 9,
+    lugar: 'Auditorio',
+    hora: '10:00',
+    horaFin: '12:00',
+    observacion: 'Fecha original: 10/12',
+    avisos: ['algún aviso'],
+    editada: true,
+    cancelada: true,
+  }
+  const p = quitarFecha(a)
+
+  it('devuelve una fila sin fecha conservando lo demás', () => {
+    expect(p).toEqual({
+      id: 'fila-9',
+      fila: 9,
+      dependencia: 'Alcaldía',
+      hora: '10:00',
+      horaFin: '12:00',
+      horaTexto: '',
+      lugar: 'Auditorio',
+      enlace: 'Juan',
+      telefono: '310',
+      observacion: 'Fecha original: 10/12',
+    })
+  })
+  it('no arrastra fecha, día, avisos ni estados de la actividad', () => {
+    for (const campo of ['fecha', 'dia', 'avisos', 'editada', 'cancelada', 'nueva']) expect(campo in p).toBe(false)
+  })
+  it('una actividad nueva sigue marcada como nueva', () => {
+    expect(quitarFecha({ ...a, nueva: true }).nueva).toBe(true)
+  })
+  it('se puede volver a programar y conserva id y fila', () => {
+    const otra = asignarFecha(p, {
+      dependencia: p.dependencia, fecha: '2026-12-22', hora: p.hora, horaFin: p.horaFin,
+      lugar: p.lugar, enlace: p.enlace, telefono: p.telefono, observacion: p.observacion,
+    })
+    expect(otra).toMatchObject({ id: 'fila-9', fila: 9, fecha: '2026-12-22', dia: 'martes', hora: '10:00', lugar: 'Auditorio' })
+    expect(otra.cancelada).toBeUndefined()
+  })
+  it('una nueva que vuelve a programarse sigue siendo nueva', () => {
+    expect(asignarFecha(quitarFecha({ ...a, nueva: true }), {
+      dependencia: 'X', fecha: '2026-12-22', hora: null, horaFin: null, lugar: '', enlace: '', telefono: '', observacion: '',
+    }).nueva).toBe(true)
+  })
+})

@@ -71,7 +71,7 @@ export function PendientesPanel({ pendientes, onAsignar, onQuitar }: Props) {
                 ) : (
                   <button type="button" className="peligro" onClick={() => setConfirmando(p.id)}>Quitar de la lista</button>
                 )}
-                <span className="muted fila">Fila {p.fila} del Excel</span>
+                <span className="muted fila">{p.nueva ? 'Agregada aquí' : `Fila ${p.fila} del Excel`}</span>
               </div>
             </div>
           </article>

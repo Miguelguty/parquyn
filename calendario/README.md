@@ -28,6 +28,9 @@ columnas; solo **Fecha** es obligatoria y el resto son opcionales:
 - **Editar** permite cambiar dependencia, fecha, hora inicial y final, enlace, teléfono y observación.
   El día de la semana se recalcula con la fecha. La actividad queda marcada como "Editada".
 - **Cancelar actividad** no la borra: queda tachada y con la etiqueta "Cancelada", y se puede **Reactivar**.
+- **Quitar fecha** devuelve una actividad programada a la lista "Sin fecha" (conserva hora, lugar y demás datos; deja
+  de estar cancelada) y se puede volver a programar.
+- **Borrar** elimina la actividad del todo, con confirmación y sin deshacer (a diferencia de Cancelar, que la deja tachada).
 - Los cambios se guardan solo en el dispositivo; **no se escriben de vuelta en el Excel**. Por eso, antes de cargar
   otro Excel, la app avisa si hay cambios (editadas, canceladas o nuevas) que se perderían.
 

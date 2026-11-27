@@ -3,7 +3,7 @@ import { AgendaView } from './components/AgendaView'
 import { FormActividad } from './components/FormActividad'
 import { MesView } from './components/MesView'
 import { PendientesPanel } from './components/PendientesPanel'
-import { aplicarCambios, asignarFecha, crearActividad, ordenar, type Actividad, type Cambios } from './lib/actividades'
+import { aplicarCambios, asignarFecha, crearActividad, ordenar, quitarFecha, type Actividad, type Cambios } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
 import { descargar } from './lib/descargar'
 import { crearExcel, nombreArchivo } from './lib/exportar'
@@ -162,6 +162,30 @@ export default function App() {
     guardar(nuevo)
     setSeleccionado(actividad.fecha)
     setCursor({ año: +actividad.fecha.slice(0, 4), mes: +actividad.fecha.slice(5, 7) - 1 })
+  }
+
+  function quitarFechaDe(id: string) {
+    if (!datos) return
+    const actividad = datos.actividades.find((a) => a.id === id)
+    if (!actividad) return
+    const nuevo: Datos = {
+      ...datos,
+      actividades: datos.actividades.filter((a) => a.id !== id),
+      sinFecha: [...(datos.sinFecha ?? []), quitarFecha(actividad)].sort((p, q) => p.fila - q.fila),
+    }
+    setDatos(nuevo)
+    guardar(nuevo)
+    setMensaje({ tipo: 'ok', texto: `"${actividad.dependencia || 'La actividad'}" volvió a la lista Sin fecha.` })
+  }
+
+  function borrarActividad(id: string) {
+    if (!datos) return
+    const actividad = datos.actividades.find((a) => a.id === id)
+    if (!actividad) return
+    const nuevo: Datos = { ...datos, actividades: datos.actividades.filter((a) => a.id !== id) }
+    setDatos(nuevo)
+    guardar(nuevo)
+    setMensaje({ tipo: 'ok', texto: `Se borró "${actividad.dependencia || 'la actividad'}" del calendario.` })
   }
 
   function quitarPendiente(id: string) {
@@ -413,9 +437,11 @@ export default function App() {
           onSeleccionar={setSeleccionado}
           onGuardar={guardarCambios}
           onCancelada={marcarCancelada}
+          onQuitarFecha={quitarFechaDe}
+          onBorrar={borrarActividad}
         />
       ) : (
-        <AgendaView actividades={datos.actividades} hoy={hoy} onGuardar={guardarCambios} onCancelada={marcarCancelada} />
+        <AgendaView actividades={datos.actividades} hoy={hoy} onGuardar={guardarCambios} onCancelada={marcarCancelada} onQuitarFecha={quitarFechaDe} onBorrar={borrarActividad} />
       )}
     </main>
   )
