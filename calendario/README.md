@@ -19,6 +19,14 @@ Primera fila con los encabezados (no importan mayúsculas ni tildes) y una fila 
 - Se lee la primera hoja del archivo. Solo `.xlsx`.
 - Un archivo nuevo reemplaza al anterior.
 
+## Cambiar o cancelar una actividad
+
+- **Editar** permite cambiar dependencia, fecha, hora inicial y final, enlace, teléfono y observación.
+  El día de la semana se recalcula con la fecha. La actividad queda marcada como "Editada".
+- **Cancelar actividad** no la borra: queda tachada y con la etiqueta "Cancelada", y se puede **Reactivar**.
+- Los cambios se guardan solo en el dispositivo; **no se escriben de vuelta en el Excel**. Por eso, antes de cargar
+  otro Excel, la app avisa si hay cambios que se perderían.
+
 ## Comandos
 
 ```bash

@@ -21,6 +21,10 @@ export type Actividad = {
   observacion: string
   /** Cosas dudosas de esta fila (por ejemplo, el día no coincide con la fecha). */
   avisos: string[]
+  /** Se cambió a mano en la app (ya no coincide con el Excel). */
+  editada?: boolean
+  /** Se canceló en la app. Sigue en el calendario, marcada como cancelada. */
+  cancelada?: boolean
 }
 
 export type Problema = { fila: number; mensaje: string }
@@ -31,6 +35,22 @@ const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ]
+
+/** Día de la semana (en minúsculas) de una fecha AAAA-MM-DD. */
+export function diaDeLaSemana(fecha: string): string {
+  const [y, m, d] = fecha.split('-').map(Number)
+  return DIAS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+}
+
+/** Copia ordenada por fecha, luego por hora (las que no tienen hora al final del día). */
+export function ordenar(lista: Actividad[]): Actividad[] {
+  return [...lista].sort(
+    (p, q) =>
+      p.fecha.localeCompare(q.fecha) ||
+      (p.hora ?? '99:99').localeCompare(q.hora ?? '99:99') ||
+      p.fila - q.fila,
+  )
+}
 
 const sinTildes = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '')
 const norm = (v: unknown) => sinTildes(String(v ?? '')).toLowerCase().trim().replace(/\s+/g, ' ')
@@ -226,8 +246,7 @@ export function filasAActividades(filas: unknown[][]): Resultado {
       continue
     }
 
-    const [y, m, d] = fecha.split('-').map(Number)
-    const dia = DIAS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+    const dia = diaDeLaSemana(fecha)
     const avisos: string[] = []
 
     const diaEscrito = texto(celda(fila, 'dia'))
@@ -243,7 +262,7 @@ export function filasAActividades(filas: unknown[][]): Resultado {
     }
 
     actividades.push({
-      id: `${nFila}-${fecha}`,
+      id: `fila-${nFila}`,
       fila: nFila,
       dependencia: texto(celda(fila, 'dependencia')),
       fecha,
@@ -258,12 +277,46 @@ export function filasAActividades(filas: unknown[][]): Resultado {
     })
   }
 
-  actividades.sort(
-    (p, q) =>
-      p.fecha.localeCompare(q.fecha) ||
-      (p.hora ?? '99:99').localeCompare(q.hora ?? '99:99') ||
-      p.fila - q.fila,
-  )
+  return { actividades: ordenar(actividades), problemas }
+}
 
-  return { actividades, problemas }
+/** Lo que la persona puede cambiar de una actividad desde la app. */
+export type Cambios = {
+  dependencia: string
+  /** AAAA-MM-DD (como entrega un campo de fecha del navegador). */
+  fecha: string
+  /** HH:MM o null. */
+  hora: string | null
+  horaFin: string | null
+  enlace: string
+  telefono: string
+  observacion: string
+}
+
+/** Devuelve un mensaje de error en español, o null si los cambios son válidos. */
+export function validarCambios(c: Cambios): string | null {
+  if (!parseFecha(c.fecha)) return 'La fecha no es válida.'
+  if (c.horaFin && !c.hora) return 'Pon la hora inicial antes de la hora final.'
+  if (c.hora && c.horaFin && c.horaFin <= c.hora) return 'La hora final debe ser después de la inicial.'
+  return null
+}
+
+/** Aplica los cambios a una actividad: recalcula el día, la marca como editada
+ *  y limpia sus avisos (la persona ya revisó la fila). Asume cambios válidos. */
+export function aplicarCambios(a: Actividad, c: Cambios): Actividad {
+  const fecha = parseFecha(c.fecha) ?? a.fecha
+  return {
+    ...a,
+    dependencia: c.dependencia.trim(),
+    fecha,
+    dia: diaDeLaSemana(fecha),
+    hora: c.hora,
+    horaFin: c.hora ? c.horaFin : null,
+    horaTexto: c.hora ? '' : a.horaTexto,
+    enlace: c.enlace.trim(),
+    telefono: c.telefono.trim(),
+    observacion: c.observacion.trim(),
+    avisos: [],
+    editada: true,
+  }
 }

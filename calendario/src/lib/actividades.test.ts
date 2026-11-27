@@ -166,3 +166,89 @@ describe('filasAActividades', () => {
     expect(r.problemas).toHaveLength(1)
   })
 })
+
+import { aplicarCambios, diaDeLaSemana, ordenar, validarCambios, type Actividad, type Cambios } from './actividades'
+
+const base: Actividad = {
+  id: 'fila-2',
+  fila: 2,
+  dependencia: 'Alcaldía',
+  fecha: '2026-12-03',
+  dia: 'jueves',
+  hora: '14:30',
+  horaFin: null,
+  horaTexto: '',
+  enlace: 'Juan',
+  telefono: '310',
+  observacion: '',
+  avisos: ['En el Excel dice "Lunes" pero el 3/12/2026 cae jueves.'],
+}
+const cambiosDe = (a: Actividad, extra: Partial<Cambios> = {}): Cambios => ({
+  dependencia: a.dependencia,
+  fecha: a.fecha,
+  hora: a.hora,
+  horaFin: a.horaFin,
+  enlace: a.enlace,
+  telefono: a.telefono,
+  observacion: a.observacion,
+  ...extra,
+})
+
+describe('diaDeLaSemana', () => {
+  it('calcula el día de una fecha AAAA-MM-DD', () => {
+    expect(diaDeLaSemana('2026-12-03')).toBe('jueves')
+    expect(diaDeLaSemana('2026-12-06')).toBe('domingo')
+  })
+})
+
+describe('validarCambios', () => {
+  it('acepta cambios correctos', () => {
+    expect(validarCambios(cambiosDe(base))).toBeNull()
+    expect(validarCambios(cambiosDe(base, { hora: null, horaFin: null }))).toBeNull()
+    expect(validarCambios(cambiosDe(base, { hora: '09:00', horaFin: '11:00' }))).toBeNull()
+  })
+  it('exige una fecha válida', () => {
+    expect(validarCambios(cambiosDe(base, { fecha: '' }))).toMatch(/fecha/i)
+    expect(validarCambios(cambiosDe(base, { fecha: '2026-02-31' }))).toMatch(/fecha/i)
+  })
+  it('no permite hora final sin hora inicial', () => {
+    expect(validarCambios(cambiosDe(base, { hora: null, horaFin: '11:00' }))).toMatch(/inicial/i)
+  })
+  it('exige que la hora final sea después de la inicial', () => {
+    expect(validarCambios(cambiosDe(base, { hora: '11:00', horaFin: '09:00' }))).toMatch(/después/i)
+    expect(validarCambios(cambiosDe(base, { hora: '11:00', horaFin: '11:00' }))).toMatch(/después/i)
+  })
+})
+
+describe('aplicarCambios', () => {
+  it('actualiza los campos, recalcula el día y marca la actividad como editada', () => {
+    const r = aplicarCambios(base, cambiosDe(base, { fecha: '2026-12-04', dependencia: ' Gobernación ', hora: '10:00' }))
+    expect(r).toMatchObject({ fecha: '2026-12-04', dia: 'viernes', dependencia: 'Gobernación', hora: '10:00', editada: true })
+  })
+  it('conserva el id y el número de fila originales', () => {
+    const r = aplicarCambios(base, cambiosDe(base, { fecha: '2026-12-10' }))
+    expect(r.id).toBe('fila-2')
+    expect(r.fila).toBe(2)
+  })
+  it('limpia los avisos (la persona ya revisó la fila)', () => {
+    expect(aplicarCambios(base, cambiosDe(base)).avisos).toEqual([])
+  })
+  it('borra el texto de hora original cuando se pone una hora', () => {
+    const a = { ...base, hora: null, horaTexto: 'por confirmar' }
+    expect(aplicarCambios(a, cambiosDe(a, { hora: '08:00' })).horaTexto).toBe('')
+    expect(aplicarCambios(a, cambiosDe(a)).horaTexto).toBe('por confirmar')
+  })
+  it('no toca el estado de cancelada', () => {
+    const a = { ...base, cancelada: true }
+    expect(aplicarCambios(a, cambiosDe(a, { observacion: 'x' })).cancelada).toBe(true)
+  })
+})
+
+describe('ordenar', () => {
+  it('ordena por fecha y hora sin modificar la lista original', () => {
+    const b = { ...base, id: 'fila-3', fila: 3, fecha: '2026-12-01' }
+    const original = [base, b]
+    expect(ordenar(original).map((x) => x.id)).toEqual(['fila-3', 'fila-2'])
+    expect(original.map((x) => x.id)).toEqual(['fila-2', 'fila-3'])
+  })
+})

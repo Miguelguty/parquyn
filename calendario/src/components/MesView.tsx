@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Actividad } from '../lib/actividades'
+import type { Actividad, Cambios } from '../lib/actividades'
 import { DIAS_SEMANA, MESES, fechaLarga, iso } from '../lib/formato'
 import { ActividadItem } from './ActividadItem'
 
@@ -10,9 +10,11 @@ type Props = {
   hoy: string
   seleccionado: string | null
   onSeleccionar: (fecha: string) => void
+  onGuardar: (id: string, cambios: Cambios) => void
+  onCancelada: (id: string, cancelada: boolean) => void
 }
 
-export function MesView({ actividades, año, mes, hoy, seleccionado, onSeleccionar }: Props) {
+export function MesView({ actividades, año, mes, hoy, seleccionado, onSeleccionar, onGuardar, onCancelada }: Props) {
   const porDia = useMemo(() => {
     const mapa = new Map<string, Actividad[]>()
     for (const a of actividades) {
@@ -42,7 +44,14 @@ export function MesView({ actividades, año, mes, hoy, seleccionado, onSeleccion
           if (dia === null) return <div key={`v${i}`} className="mes-celda vacia" />
           const f = iso(año, mes, dia)
           const lista = porDia.get(f) ?? []
-          const clases = ['mes-celda', f === hoy && 'hoy', f === seleccionado && 'sel', lista.length && 'con']
+          const activas = lista.filter((x) => !x.cancelada).length
+          const clases = [
+            'mes-celda',
+            f === hoy && 'hoy',
+            f === seleccionado && 'sel',
+            activas > 0 && 'con',
+            lista.length > 0 && activas === 0 && 'solo-canceladas',
+          ]
             .filter(Boolean)
             .join(' ')
           return (
@@ -51,15 +60,15 @@ export function MesView({ actividades, año, mes, hoy, seleccionado, onSeleccion
               type="button"
               className={clases}
               aria-pressed={f === seleccionado}
-              aria-label={`${fechaLarga(f)}${lista.length ? `, ${lista.length} actividad${lista.length > 1 ? 'es' : ''}` : ''}`}
+              aria-label={`${fechaLarga(f)}${lista.length ? `, ${activas} actividad${activas === 1 ? '' : 'es'}${lista.length > activas ? `, ${lista.length - activas} cancelada${lista.length - activas === 1 ? '' : 's'}` : ''}` : ''}`}
               onClick={() => onSeleccionar(f)}
             >
               <span className="num">{dia}</span>
               {lista.slice(0, 2).map((a) => (
-                <span key={a.id} className="chip">{a.dependencia || '(sin dependencia)'}</span>
+                <span key={a.id} className={`chip${a.cancelada ? ' cancelada' : ''}`}>{a.dependencia || '(sin dependencia)'}</span>
               ))}
               {lista.length > 2 && <span className="chip mas">+{lista.length - 2} más</span>}
-              {lista.length > 0 && <span className="cuenta">{lista.length}</span>}
+              {activas > 0 && <span className="cuenta">{activas}</span>}
             </button>
           )
         })}
@@ -72,7 +81,7 @@ export function MesView({ actividades, año, mes, hoy, seleccionado, onSeleccion
             {delDia.length === 0 ? (
               <p className="muted">No hay actividades este día.</p>
             ) : (
-              delDia.map((a) => <ActividadItem key={a.id} a={a} />)
+              delDia.map((a) => <ActividadItem key={a.id} a={a} onGuardar={onGuardar} onCancelada={onCancelada} />)
             )}
           </>
         ) : (

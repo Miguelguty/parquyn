@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Actividad } from '../lib/actividades'
+import type { Actividad, Cambios } from '../lib/actividades'
 import { fechaLarga } from '../lib/formato'
 import { ActividadItem } from './ActividadItem'
 
@@ -13,7 +13,14 @@ function agrupar(lista: Actividad[]): [string, Actividad[]][] {
   return grupos
 }
 
-export function AgendaView({ actividades, hoy }: { actividades: Actividad[]; hoy: string }) {
+type Props = {
+  actividades: Actividad[]
+  hoy: string
+  onGuardar: (id: string, cambios: Cambios) => void
+  onCancelada: (id: string, cancelada: boolean) => void
+}
+
+export function AgendaView({ actividades, hoy, onGuardar, onCancelada }: Props) {
   const [verPasadas, setVerPasadas] = useState(false)
   const proximas = actividades.filter((a) => a.fecha >= hoy)
   const pasadas = actividades.filter((a) => a.fecha < hoy)
@@ -35,7 +42,7 @@ export function AgendaView({ actividades, hoy }: { actividades: Actividad[]; hoy
             {fecha === hoy && <span className="etiqueta">Hoy</span>}
           </h2>
           {lista.map((a) => (
-            <ActividadItem key={a.id} a={a} />
+            <ActividadItem key={a.id} a={a} onGuardar={onGuardar} onCancelada={onCancelada} />
           ))}
         </div>
       ))}

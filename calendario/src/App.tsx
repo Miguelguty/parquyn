@@ -1,7 +1,7 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { AgendaView } from './components/AgendaView'
 import { MesView } from './components/MesView'
-import type { Actividad } from './lib/actividades'
+import { aplicarCambios, ordenar, type Actividad, type Cambios } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
 import { MESES, hoyISO } from './lib/formato'
 import { resultadoDemo } from './lib/demo'
@@ -40,6 +40,7 @@ export default function App() {
   const [cursor, setCursor] = useState(() => mesInicial(datos?.actividades ?? [], hoy))
   const [seleccionado, setSeleccionado] = useState<string | null>(() => primerDia(datos?.actividades ?? [], hoy))
   const [confirmandoBorrar, setConfirmandoBorrar] = useState(false)
+  const [pendiente, setPendiente] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [arrastrando, setArrastrando] = useState(false)
@@ -56,6 +57,7 @@ export default function App() {
       setCursor(mesInicial(r.actividades, hoy))
       setSeleccionado(primerDia(r.actividades, hoy))
       setConfirmandoBorrar(false)
+      setPendiente(null)
     } catch {
       setError(
         'No pude abrir ese archivo. Tiene que ser un Excel .xlsx. Si es un .xls antiguo, ábrelo en Excel y guárdalo como .xlsx.',
@@ -66,11 +68,46 @@ export default function App() {
     }
   }
 
+  /** Cambios hechos a mano en la app que un Excel nuevo haría desaparecer. */
+  const editadas = datos && !datos.esEjemplo ? datos.actividades.filter((a) => a.editada).length : 0
+  const canceladas = datos ? datos.actividades.filter((a) => a.cancelada).length : 0
+  const conCambios = datos && !datos.esEjemplo ? datos.actividades.filter((a) => a.editada || a.cancelada).length : 0
+
+  function pedirCarga(archivo: File) {
+    if (conCambios > 0) {
+      if (entrada.current) entrada.current.value = ''
+      setPendiente(archivo)
+    } else {
+      void procesar(archivo)
+    }
+  }
+
+  function cambiar(id: string, f: (a: Actividad) => Actividad) {
+    if (!datos) return
+    const nuevo: Datos = { ...datos, actividades: ordenar(datos.actividades.map((a) => (a.id === id ? f(a) : a))) }
+    setDatos(nuevo)
+    guardar(nuevo)
+  }
+
+  function guardarCambios(id: string, cambios: Cambios) {
+    const actual = datos?.actividades.find((a) => a.id === id)
+    if (!actual) return
+    const nueva = aplicarCambios(actual, cambios)
+    cambiar(id, () => nueva)
+    // Muestra dónde quedó la actividad si cambió de fecha.
+    setSeleccionado(nueva.fecha)
+    setCursor({ año: +nueva.fecha.slice(0, 4), mes: +nueva.fecha.slice(5, 7) - 1 })
+  }
+
+  function marcarCancelada(id: string, cancelada: boolean) {
+    cambiar(id, (a) => ({ ...a, cancelada }))
+  }
+
   function alSoltar(e: DragEvent) {
     e.preventDefault()
     setArrastrando(false)
     const archivo = e.dataTransfer.files[0]
-    if (archivo) void procesar(archivo)
+    if (archivo) pedirCarga(archivo)
   }
 
   function mover(delta: number) {
@@ -111,7 +148,7 @@ export default function App() {
       hidden
       onChange={(e) => {
         const f = e.target.files?.[0]
-        if (f) void procesar(f)
+        if (f) pedirCarga(f)
       }}
     />
   )
@@ -167,6 +204,8 @@ export default function App() {
           <h1>Mi calendario</h1>
           <p className="muted">
             {datos.actividades.length} actividad{datos.actividades.length === 1 ? '' : 'es'} · {datos.nombre}
+            {canceladas > 0 && ` · ${canceladas} cancelada${canceladas === 1 ? '' : 's'}`}
+            {editadas > 0 && ` · ${editadas} editada${editadas === 1 ? '' : 's'}`}
           </p>
           {datos.esEjemplo && (
             <p className="ejemplo">
@@ -194,6 +233,21 @@ export default function App() {
       </header>
 
       {error && <p role="alert" className="error">{error}</p>}
+
+      {pendiente && (
+        <div role="alert" className="aviso-carga">
+          <p>
+            Tienes {conCambios} actividad{conCambios === 1 ? '' : 'es'} con cambios hechos aquí (editadas o canceladas).
+            Si cargas "{pendiente.name}", esos cambios se pierden.
+          </p>
+          <div className="botones-form">
+            <button type="button" className="peligro" onClick={() => void procesar(pendiente)}>
+              Cargar y perder los cambios
+            </button>
+            <button type="button" onClick={() => setPendiente(null)}>No cargar</button>
+          </div>
+        </div>
+      )}
 
       {(datos.problemas.length > 0 || avisosCuenta > 0) && (
         <details className="revisar" open={datos.problemas.length > 0}>
@@ -240,9 +294,11 @@ export default function App() {
           hoy={hoy}
           seleccionado={seleccionado}
           onSeleccionar={setSeleccionado}
+          onGuardar={guardarCambios}
+          onCancelada={marcarCancelada}
         />
       ) : (
-        <AgendaView actividades={datos.actividades} hoy={hoy} />
+        <AgendaView actividades={datos.actividades} hoy={hoy} onGuardar={guardarCambios} onCancelada={marcarCancelada} />
       )}
     </main>
   )
