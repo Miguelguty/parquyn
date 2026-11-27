@@ -5,8 +5,8 @@ import { MesView } from './components/MesView'
 import { PendientesPanel } from './components/PendientesPanel'
 import { aplicarCambios, asignarFecha, crearActividad, ordenar, quitarFecha, type Actividad, type Cambios } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
-import { descargar } from './lib/descargar'
-import { crearExcel, nombreArchivo } from './lib/exportar'
+import { descargar, type ResultadoDescarga } from './lib/descargar'
+import { NOMBRE_FORMATO, crearExcel, crearFormato, nombreArchivo } from './lib/exportar'
 import { MESES, hoyISO } from './lib/formato'
 import { resultadoDemo } from './lib/demo'
 import { leerExcel } from './lib/leerExcel'
@@ -114,19 +114,34 @@ export default function App() {
     const nombre = nombreArchivo(hoy)
     try {
       const archivo = await crearExcel(datos.actividades, datos.sinFecha ?? [])
-      const r = await descargar(nombre, archivo)
-      if (r === 'guardado') {
-        setMensaje({ tipo: 'ok', texto: `Listo: ${nombre}. Es un Excel completo con tus cambios; si lo vuelves a cargar aquí no se pierde nada.` })
-      } else if (r === 'cancelado') {
-        setMensaje({ tipo: 'error', texto: 'No se guardó el archivo.' })
-      } else if (r === 'no-disponible') {
-        setMensaje({ tipo: 'error', texto: 'Este visor no permite guardar archivos. Abre la página en el navegador de tu computador para exportar.' })
-      } else {
-        setMensaje({ tipo: 'error', texto: 'No se pudo guardar el archivo. Intenta de nuevo.' })
-      }
+      informar(
+        await descargar(nombre, archivo),
+        `Listo: ${nombre}. Es un Excel completo con tus cambios; si lo vuelves a cargar aquí no se pierde nada.`,
+      )
     } catch {
       setMensaje({ tipo: 'error', texto: 'No se pudo generar el Excel. Intenta de nuevo.' })
     }
+  }
+
+  async function bajarFormato() {
+    setMensaje(null)
+    try {
+      informar(
+        await descargar(NOMBRE_FORMATO, await crearFormato()),
+        `Listo: ${NOMBRE_FORMATO}. Llénalo en Excel (hay una hoja de instrucciones) y cárgalo aquí con "Cargar otro Excel".`,
+      )
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'No se pudo generar el formato. Intenta de nuevo.' })
+    }
+  }
+
+  /** Muestra el resultado de una descarga. */
+  function informar(r: ResultadoDescarga, listo: string) {
+    if (r === 'guardado') setMensaje({ tipo: 'ok', texto: listo })
+    else if (r === 'cancelado') setMensaje({ tipo: 'error', texto: 'No se guardó el archivo.' })
+    else if (r === 'no-disponible')
+      setMensaje({ tipo: 'error', texto: 'Este visor no permite guardar archivos. Abre la página en el navegador de tu computador para descargar.' })
+    else setMensaje({ tipo: 'error', texto: 'No se pudo guardar el archivo. Intenta de nuevo.' })
   }
 
   function alternarAgregar() {
@@ -273,17 +288,21 @@ export default function App() {
           </p>
         </div>
         {error && <p role="alert" className="error">{error}</p>}
+        {mensaje && (
+          <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={mensaje.tipo === 'error' ? 'error' : 'exito'}>
+            {mensaje.texto}
+          </p>
+        )}
         <section className="ayuda">
           <h2>¿Cómo debe ser el Excel?</h2>
           <p>
-            Una fila por actividad, con estas columnas en la primera fila: <strong>Dependencia, Fechas, Días, Hora,
-            Enlace, Teléfono en enlace, Observación</strong>. No importan las mayúsculas ni las tildes.
+            Una fila por actividad, con estas columnas en la primera fila: <strong>Dependencia, Fecha, Día, Hora, Lugar,
+            Enlace, Teléfono, Observaciones</strong>. Solo la fecha es obligatoria y no importan las mayúsculas ni las tildes.
+            El formato vacío trae una hoja de instrucciones.
           </p>
-          {!ABRIR_CON_EJEMPLO && (
-            <p>
-              <a href={`${import.meta.env.BASE_URL}ejemplo.xlsx`} download>Descargar un Excel de ejemplo</a>
-            </p>
-          )}
+          <p>
+            <button type="button" onClick={() => void bajarFormato()}>Descargar el formato de Excel</button>
+          </p>
           <p className="muted">
             Tu archivo se lee en este mismo dispositivo y no se envía a ningún servidor. Las fechas escritas como
             texto se leen con el día primero (3/12/2026 es 3 de diciembre).
@@ -323,6 +342,7 @@ export default function App() {
           >
             Exportar a Excel
           </button>
+          <button type="button" onClick={() => void bajarFormato()}>Descargar formato</button>
           {datos.esEjemplo ? (
             <button type="button" onClick={borrar}>Salir del ejemplo</button>
           ) : confirmandoBorrar ? (
@@ -380,6 +400,12 @@ export default function App() {
           )}
           {avisosCuenta > 0 && <p className="muted">Las filas con avisos sí aparecen; el aviso sale en su tarjeta.</p>}
         </details>
+      )}
+
+      {datos.actividades.length === 0 && (datos.sinFecha?.length ?? 0) === 0 && datos.problemas.length === 0 && (
+        <p className="ejemplo">
+          Este archivo todavía no tiene actividades. Llénalo en Excel y vuelve a cargarlo, o agrégalas aquí con "+ Agregar actividad".
+        </p>
       )}
 
       <nav className="controles" aria-label="Vista">

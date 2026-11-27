@@ -106,3 +106,44 @@ describe('ida y vuelta: exportar y volver a cargar no pierde nada', () => {
     expect(r.sinFecha.map((p) => p.dependencia)).toEqual(['GEPM', 'PES'])
   })
 })
+
+import readExcelFile from 'read-excel-file/universal'
+import { crearFormato } from './exportar'
+
+describe('crearFormato (Excel vacío para llenar)', () => {
+  it('trae la hoja Cronograma primero y una hoja de Instrucciones', async () => {
+    const hojas = await readExcelFile(await crearFormato())
+    expect(hojas.map((h) => h.sheet)).toEqual(['Cronograma', 'Instrucciones'])
+  })
+
+  it('la hoja Cronograma solo trae los encabezados que la app reconoce', async () => {
+    const hojas = await readExcelFile(await crearFormato())
+    expect(hojas[0].data).toEqual([
+      ['Dependencia', 'Fecha', 'Día', 'Hora', 'Lugar', 'Enlace', 'Teléfono', 'Observaciones'],
+    ])
+  })
+
+  it('cargado tal cual no genera actividades, ni errores, ni filas sin fecha', async () => {
+    const r = filasAActividades((await readSheet(await crearFormato())) as unknown[][])
+    expect(r).toEqual({ actividades: [], problemas: [], sinFecha: [] })
+  })
+
+  it('al llenarlo, todas sus columnas se leen en el campo correcto', async () => {
+    const hojas = await readExcelFile(await crearFormato())
+    const llena = [
+      hojas[0].data[0],
+      ['Secretaría de Educación', utc(2026, 12, 3), 'Jueves', '10:00 – 12:00', 'Auditorio', 'María Pérez', '300 123 4567', 'Llevar proyector'],
+    ] as unknown[][]
+    const r = filasAActividades(llena)
+    expect(r.problemas).toEqual([])
+    expect(r.actividades[0]).toMatchObject({
+      dependencia: 'Secretaría de Educación', fecha: '2026-12-03', dia: 'jueves', hora: '10:00', horaFin: '12:00',
+      lugar: 'Auditorio', enlace: 'María Pérez', telefono: '300 123 4567', observacion: 'Llevar proyector', avisos: [],
+    })
+  })
+
+  it('las instrucciones no se leen como actividades (solo se lee la primera hoja)', async () => {
+    const hojas = await readExcelFile(await crearFormato())
+    expect(hojas[1].data.length).toBeGreaterThan(5)
+  })
+})

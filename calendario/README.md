@@ -6,6 +6,11 @@ dispositivo (localStorage).
 
 ## Formato del Excel
 
+**Descargar formato** (en la pantalla de inicio y en la barra de arriba) baja `formato-calendario.xlsx`: un Excel vacío con
+estas columnas en la hoja "Cronograma" y una hoja "Instrucciones" con ejemplos (esa hoja se ignora al cargar). La hoja
+Cronograma va sin filas de ejemplo para que no se carguen por error. Lo generan las mismas funciones que la exportación,
+así que siempre coincide con lo que la app entiende.
+
 Primera fila con los encabezados (no importan mayúsculas ni tildes) y una fila por actividad. Se reconocen estas
 columnas; solo **Fecha** es obligatoria y el resto son opcionales:
 
@@ -54,7 +59,6 @@ npm install
 npm run dev        # desarrollo
 npm test           # pruebas de la lógica de lectura (src/lib/actividades.test.ts)
 npm run build      # genera dist/ (sitio estático, se puede publicar en cualquier hosting)
-npm run ejemplo    # regenera public/ejemplo.xlsx
 ```
 
 Stack: TypeScript, React, Vite, [read-excel-file](https://www.npmjs.com/package/read-excel-file), Vitest.

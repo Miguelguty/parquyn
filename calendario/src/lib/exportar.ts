@@ -86,3 +86,44 @@ export async function crearExcel(actividades: Actividad[], sinFecha: Pendiente[]
 export function nombreArchivo(hoy: string): string {
   return `calendario-${hoy}.xlsx`
 }
+
+const ENCABEZADOS_FORMATO = ['Dependencia', 'Fecha', 'Día', 'Hora', 'Lugar', 'Enlace', 'Teléfono', 'Observaciones']
+
+/** Filas de la hoja de instrucciones: columna, qué poner, ejemplo. */
+const INSTRUCCIONES: [string, string, string][] = [
+  ['Dependencia', 'Nombre de la dependencia. Si la dejas vacía, la actividad se muestra como "(sin dependencia)".', 'Secretaría de Educación'],
+  ['Fecha', 'Fecha de la actividad. Escríbela como 3/12/2026 (día primero) o 3 de diciembre de 2026. Si todavía no tiene fecha, déjala vacía: la actividad queda en la lista "Sin fecha" hasta que la programes (necesita al menos la dependencia).', '3/12/2026'],
+  ['Día', 'Opcional. La app lo calcula a partir de la fecha. Si lo escribes y no coincide, te avisa.', 'Jueves'],
+  ['Hora', 'Una hora (9:00, 14:30, 3 PM) o un rango.', '10:00 – 12:00'],
+  ['Lugar', 'Opcional.', 'Auditorio principal'],
+  ['Enlace', 'Opcional. Persona de contacto.', 'María Pérez'],
+  ['Teléfono', 'Opcional.', '300 123 4567'],
+  ['Observaciones', 'Opcional. Cualquier nota.', 'Llevar proyector'],
+]
+
+/** Excel vacío con las columnas que entiende la app, listo para llenar y volver a cargar.
+ *  La hoja "Cronograma" va sin filas de ejemplo (para que no se carguen por error); los ejemplos van en "Instrucciones". */
+export async function crearFormato(): Promise<Blob> {
+  const negrita = (value: string) => ({ value, fontWeight: 'bold' as const })
+  const texto = (value: string) => ({ value, wrap: true, alignVertical: 'top' as const })
+
+  const cronograma = [ENCABEZADOS_FORMATO.map(negrita)]
+  const instrucciones = [
+    [negrita('Cómo llenar la hoja "Cronograma"'), null, null],
+    [texto('Una fila por actividad. No cambies los títulos de la primera fila; las columnas opcionales se pueden dejar vacías.'), null, null],
+    [texto('Solo se lee la primera hoja (Cronograma). Esta hoja de instrucciones se ignora. Se aceptan archivos .xlsx y .xlsm.'), null, null],
+    [texto('Para dejar una actividad cancelada, agrega una columna llamada Estado y escribe Cancelada en su fila.'), null, null],
+    [null, null, null],
+    [negrita('Columna'), negrita('Qué poner'), negrita('Ejemplo')],
+    ...INSTRUCCIONES.map(([c, q, e]) => [texto(c), texto(q), texto(e)]),
+  ]
+
+  return writeExcelFile(
+    [
+      { data: cronograma, sheet: 'Cronograma', columns: ENCABEZADOS_FORMATO.map((n) => ({ width: ANCHOS[n] ?? 16 })) },
+      { data: instrucciones, sheet: 'Instrucciones', columns: [{ width: 18 }, { width: 70 }, { width: 24 }] },
+    ],
+  ).toBlob()
+}
+
+export const NOMBRE_FORMATO = 'formato-calendario.xlsx'

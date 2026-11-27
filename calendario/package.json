@@ -8,8 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run",
-    "ejemplo": "node scripts/make-sample.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "react": "^19.3.1",
