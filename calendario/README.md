@@ -85,6 +85,19 @@ Los datos que cargas se guardan en el navegador de **cada dispositivo** (localSt
 el celular y el computador no comparten calendario. Para pasar datos de uno a otro, usa **Exportar a Excel** y
 **Cargar otro Excel**.
 
+## Instalar como app (PWA)
+
+La app es instalable y, después de abrirla una vez con conexión, abre también sin conexión (service worker en
+`public/sw.js`, manifiesto en `public/manifest.webmanifest`). Requiere abrirla por **HTTPS** (o `localhost`).
+
+- **Android (Chrome):** abre la dirección, menú ⋮ → **Instalar app** (o "Agregar a la pantalla principal"). Chrome genera
+  un paquete Android propio (WebAPK) con el icono del calendario.
+- **Computador (Chrome o Edge):** icono de instalar en la barra de direcciones.
+- **iPhone (Safari):** Compartir → **Añadir a pantalla de inicio** (no probado).
+
+Cuando publiques una versión nueva, la página se actualiza sola al abrirla con conexión (primero va a la red).
+Si cambias la estrategia de caché de `sw.js`, sube el número de `CACHE` dentro del archivo.
+
 ## Comandos
 
 ```bash
