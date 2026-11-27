@@ -38,9 +38,9 @@ export function MesView({ actividades, año, mes, hoy, seleccionado, onSeleccion
 
   return (
     <section aria-label={`Calendario de ${MESES[mes]} ${año}`}>
-      <div className="mes-grid" role="grid">
+      <div className="mes-grid">
         {DIAS_SEMANA.map((d) => (
-          <div key={d} className="mes-cab" role="columnheader">{d}</div>
+          <div key={d} className="mes-cab" aria-hidden="true">{d}</div>
         ))}
         {celdas.map((dia, i) => {
           if (dia === null) return <div key={`v${i}`} className="mes-celda vacia" />

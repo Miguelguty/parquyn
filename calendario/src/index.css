@@ -7,7 +7,11 @@
   --acento: #2457d6;
   --acento-texto: #ffffff;
   --acento-suave: #e6edfc;
-  --hoy: #d6402a;
+  --hoy: #b8321e;
+  --borde-control: #848e9a;
+  --aviso-flot-fondo: #1b1f24;
+  --aviso-flot-texto: #f6f7f9;
+  --aviso-flot-accion: #a9c1ff;
   --aviso-fondo: #fff4d6;
   --aviso-texto: #6b4a00;
   --error-fondo: #fde6e3;
@@ -25,6 +29,10 @@
     --acento-texto: #0d1526;
     --acento-suave: #223052;
     --hoy: #ff7a63;
+    --borde-control: #6b7683;
+    --aviso-flot-fondo: #eceff3;
+    --aviso-flot-texto: #14171b;
+    --aviso-flot-accion: #2457d6;
     --aviso-fondo: #3a2f0f;
     --aviso-texto: #ffd98a;
     --error-fondo: #3d1b17;
@@ -42,6 +50,10 @@
   --acento-texto: #0d1526;
   --acento-suave: #223052;
   --hoy: #ff7a63;
+  --borde-control: #6b7683;
+  --aviso-flot-fondo: #eceff3;
+  --aviso-flot-texto: #14171b;
+  --aviso-flot-accion: #2457d6;
   --aviso-fondo: #3a2f0f;
   --aviso-texto: #ffd98a;
   --error-fondo: #3d1b17;
@@ -58,14 +70,24 @@ body {
 button, input { font: inherit; color: inherit; }
 button {
   background: var(--superficie);
-  border: 1px solid var(--borde);
+  border: 1px solid var(--borde-control);
   border-radius: 8px;
   padding: 8px 14px;
   cursor: pointer;
-  min-height: 40px;
+  min-height: 44px;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
 }
 button:hover:not(:disabled) { border-color: var(--acento); }
+/* Respuesta al toque sin mover nada del diseño. */
+button:active:not(:disabled) { background: var(--acento-suave); }
 button:disabled { opacity: 0.6; cursor: wait; }
+/* En pantallas táctiles el mínimo recomendado es 48 px (Android) / 44 (iOS). */
+@media (pointer: coarse) {
+  button, input[type='text'], input[type='tel'], input[type='date'], input[type='time'] { min-height: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none; }
+}
 button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
 a { color: var(--acento); }
 h1 { font-size: 1.5rem; margin: 0; }
@@ -79,7 +101,8 @@ p { margin: 4px 0; }
 .barra { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
 .acciones { display: flex; gap: 8px; flex-wrap: wrap; }
 .primario { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); font-weight: 600; }
-.peligro:hover:not(:disabled) { border-color: var(--hoy); color: var(--hoy); }
+.peligro { color: var(--hoy); }
+.peligro:hover:not(:disabled) { border-color: var(--hoy); }
 
 .soltar {
   margin: 24px 0;
@@ -100,9 +123,9 @@ p { margin: 4px 0; }
 .revisar ul { margin: 4px 0 0; padding-left: 20px; }
 
 .controles { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.pestanas { display: inline-flex; border: 1px solid var(--borde); border-radius: 8px; overflow: hidden; }
+.pestanas { display: inline-flex; border: 1px solid var(--borde-control); border-radius: 8px; overflow: hidden; }
 .pestanas button { border: 0; border-radius: 0; background: var(--superficie); }
-.pestanas button[aria-selected='true'] { background: var(--acento); color: var(--acento-texto); font-weight: 600; }
+.pestanas button[aria-pressed='true'] { background: var(--acento); color: var(--acento-texto); font-weight: 600; }
 .meses { display: flex; align-items: center; gap: 8px; }
 .meses strong { min-width: 9.5em; text-align: center; }
 
@@ -121,7 +144,7 @@ p { margin: 4px 0; }
 .mes-celda.sel { outline: 2px solid var(--acento); outline-offset: -2px; }
 .chip { display: none; font-size: 0.75rem; line-height: 1.2; padding: 1px 4px; border-radius: 4px; background: var(--acento); color: var(--acento-texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chip.mas { background: transparent; color: var(--suave); padding-left: 0; }
-.cuenta { position: absolute; right: 4px; top: 4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--acento); color: var(--acento-texto); font-size: 0.7rem; font-weight: 700; line-height: 18px; text-align: center; }
+.cuenta { position: absolute; right: 4px; top: 4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--acento); color: var(--acento-texto); font-size: 0.75rem; font-weight: 700; line-height: 18px; text-align: center; }
 @media (min-width: 700px) {
   .mes-celda { min-height: 92px; padding: 6px; }
   .chip { display: block; }
@@ -149,8 +172,8 @@ p { margin: 4px 0; }
 .confirmar { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.9rem; }
 
 input[type='text'], input[type='tel'], input[type='date'], input[type='time'], textarea {
-  width: 100%; min-height: 40px; padding: 8px 10px; border-radius: 8px;
-  border: 1px solid var(--borde); background: var(--fondo); color: var(--texto);
+  width: 100%; min-height: 44px; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--borde-control); background: var(--fondo); color: var(--texto);
 }
 textarea { resize: vertical; }
 .form-actividad { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -159,9 +182,9 @@ textarea { resize: vertical; }
 .botones-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .actividad.editando { border-color: var(--acento); }
 .acciones-act { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
-.acciones-act button { min-height: 34px; padding: 4px 12px; font-size: 0.9rem; }
+.acciones-act button { padding: 8px 14px; font-size: 0.95rem; }
 .acciones-act .fila { margin-left: auto; }
-.estado { margin-left: 8px; font-size: 0.72rem; font-weight: 600; padding: 1px 8px; border-radius: 10px; vertical-align: middle; }
+.estado { margin-left: 8px; font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 10px; vertical-align: middle; }
 .estado.cancel { background: var(--error-fondo); color: var(--error-texto); }
 .estado.edit { background: var(--acento-suave); color: var(--texto); }
 .actividad.cancelada { opacity: 0.75; border-style: dashed; }
@@ -180,3 +203,34 @@ textarea { resize: vertical; }
 .sin-fecha .actividad { background: var(--fondo); }
 
 .exito { background: var(--acento-suave); color: var(--texto); padding: 10px 12px; border-radius: 8px; }
+
+/* Aviso flotante abajo (donde está el dedo), con "Deshacer". Respeta la zona segura del teléfono. */
+.aviso-region {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; pointer-events: none;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; justify-content: center;
+}
+.aviso-cuerpo {
+  pointer-events: auto; width: 100%; max-width: 960px; display: flex; align-items: center; gap: 8px;
+  background: var(--aviso-flot-fondo); color: var(--aviso-flot-texto);
+  border-radius: 10px; padding: 8px 8px 8px 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.aviso-cuerpo.error { background: var(--error-fondo); color: var(--error-texto); border: 1px solid var(--error-texto); }
+.aviso-texto { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.aviso-cuerpo button { background: transparent; border: 0; color: inherit; padding: 8px 12px; font-weight: 600; }
+.aviso-cuerpo .aviso-accion { color: var(--aviso-flot-accion); text-decoration: underline; }
+.aviso-cuerpo.error .aviso-accion { color: inherit; }
+.aviso-cuerpo .aviso-cerrar { font-size: 1.4rem; line-height: 1; min-width: 44px; }
+.aviso-cuerpo button:active:not(:disabled) { background: rgba(127, 127, 127, 0.25); }
+/* El aviso no debe tapar el final del contenido ni el elemento con foco. */
+.contenedor.con-aviso { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+
+/* Zonas táctiles: flechas del mes, títulos desplegables y teléfonos tocables llegan al mínimo. */
+.meses button { min-width: 44px; }
+summary { display: flex; align-items: center; min-height: 44px; }
+@media (pointer: coarse) {
+  /* Va al final del archivo para que ninguna regla posterior la anule. */
+  button, input[type='text'], input[type='tel'], input[type='date'], input[type='time'], summary { min-height: 48px; }
+  /* Un teléfono dentro de una frase: se agranda el área tocable sin mover el texto. */
+  .actividad-cuerpo a { display: inline-block; padding: 14px 6px; margin: -14px -6px; }
+}

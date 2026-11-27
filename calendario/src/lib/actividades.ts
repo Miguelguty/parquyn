@@ -423,3 +423,15 @@ export function quitarFecha(a: Actividad): Pendiente {
     ...(a.nueva && { nueva: true }),
   }
 }
+
+export type CampoFormulario = 'dependencia' | 'fecha' | 'hora' | 'horaFin'
+
+/** A qué campo del formulario corresponde un mensaje de `validarCambios` (para llevar el foco ahí). */
+export function campoDeError(mensaje: string): CampoFormulario | null {
+  const m = mensaje.toLowerCase()
+  if (m.includes('dependencia')) return 'dependencia'
+  if (m.includes('hora final debe')) return 'horaFin'
+  if (m.includes('hora inicial')) return 'hora'
+  if (m.includes('fecha')) return 'fecha'
+  return null
+}

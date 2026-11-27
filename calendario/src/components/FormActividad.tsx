@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { validarCambios, type Cambios } from '../lib/actividades'
+import { campoDeError, validarCambios, type Cambios, type CampoFormulario } from '../lib/actividades'
 
 type Props = {
   titulo: string
@@ -26,18 +26,33 @@ export function FormActividad({
 }: Props) {
   const [form, setForm] = useState<Cambios>(inicial)
   const [error, setError] = useState<string | null>(null)
+  const [campoError, setCampoError] = useState<CampoFormulario | null>(null)
+
+  const id = (k: keyof Cambios) => `${idBase}-${k}`
+  const idError = `${idBase}-error`
+  /** Marca el campo con problema para lectores de pantalla y lo enlaza con el mensaje. */
+  const invalido = (k: CampoFormulario) =>
+    campoError === k ? { 'aria-invalid': true as const, 'aria-describedby': idError } : {}
 
   function enviar(e: FormEvent) {
     e.preventDefault()
     const problema = validarCambios(form, { dependenciaObligatoria })
     if (problema) {
+      const campo = campoDeError(problema)
       setError(problema)
+      setCampoError(campo)
+      // El foco va al campo con el problema, no se queda en el botón.
+      if (campo) document.getElementById(id(campo))?.focus()
       return
     }
+    setError(null)
+    setCampoError(null)
     onGuardar(form)
   }
 
-  const id = (k: keyof Cambios) => `${idBase}-${k}`
+  /** El mensaje va pegado al campo con el problema (no al final del formulario, donde en un celular no se vería). */
+  const mensajeDeError = error ? <p id={idError} role="alert" className="error">{error}</p> : null
+
   const texto = (k: 'dependencia' | 'lugar' | 'enlace' | 'telefono' | 'observacion') => ({
     id: id(k),
     value: form[k],
@@ -47,8 +62,9 @@ export function FormActividad({
   return (
     <form className="form-actividad" onSubmit={enviar} noValidate>
       <h3>{titulo}</h3>
-      <label htmlFor={id('dependencia')}>Dependencia</label>
-      <input type="text" {...texto('dependencia')} />
+      <label htmlFor={id('dependencia')}>Dependencia{dependenciaObligatoria ? ' (obligatoria)' : ''}</label>
+      <input type="text" {...texto('dependencia')} {...invalido('dependencia')} />
+      {campoError === 'dependencia' && mensajeDeError}
 
       <div className="fila-form">
         <div>
@@ -59,6 +75,7 @@ export function FormActividad({
             value={form.fecha}
             onChange={(e) => setForm({ ...form, fecha: e.target.value })}
             required
+            {...invalido('fecha')}
           />
         </div>
         <div>
@@ -68,6 +85,7 @@ export function FormActividad({
             id={id('hora')}
             value={form.hora ?? ''}
             onChange={(e) => setForm({ ...form, hora: e.target.value || null })}
+            {...invalido('hora')}
           />
         </div>
         <div>
@@ -77,9 +95,11 @@ export function FormActividad({
             id={id('horaFin')}
             value={form.horaFin ?? ''}
             onChange={(e) => setForm({ ...form, horaFin: e.target.value || null })}
+            {...invalido('horaFin')}
           />
         </div>
       </div>
+      {(campoError === 'fecha' || campoError === 'hora' || campoError === 'horaFin') && mensajeDeError}
       {horaOriginal && !form.hora && <p className="muted">En el Excel la hora decía "{horaOriginal}".</p>}
 
       <label htmlFor={id('lugar')}>Lugar</label>
@@ -91,7 +111,7 @@ export function FormActividad({
       <label htmlFor={id('observacion')}>Observación</label>
       <textarea rows={3} {...texto('observacion')} />
 
-      {error && <p role="alert" className="error">{error}</p>}
+      {!campoError && mensajeDeError}
       <div className="botones-form">
         <button type="submit" className="primario">{textoGuardar}</button>
         <button type="button" onClick={onCerrar}>Cerrar sin guardar</button>

@@ -480,3 +480,26 @@ describe('fechas escritas sin año', () => {
     expect(r.problemas[0].mensaje).toMatch(/3\/12\/2026/)
   })
 })
+
+import { campoDeError } from './actividades'
+
+describe('campoDeError (a qué campo llevar el foco)', () => {
+  it('asocia cada mensaje de validación con su campo', () => {
+    expect(campoDeError('Escribe la dependencia.')).toBe('dependencia')
+    expect(campoDeError('Elige una fecha.')).toBe('fecha')
+    expect(campoDeError('La fecha no es válida.')).toBe('fecha')
+    expect(campoDeError('Pon la hora inicial antes de la hora final.')).toBe('hora')
+    expect(campoDeError('La hora final debe ser después de la inicial.')).toBe('horaFin')
+  })
+  it('coincide con los mensajes reales de validarCambios', () => {
+    const c: Cambios = { dependencia: '', fecha: '2026-12-03', hora: null, horaFin: null, lugar: '', enlace: '', telefono: '', observacion: '' }
+    expect(campoDeError(validarCambios(c, { dependenciaObligatoria: true })!)).toBe('dependencia')
+    expect(campoDeError(validarCambios({ ...c, fecha: '' })!)).toBe('fecha')
+    expect(campoDeError(validarCambios({ ...c, fecha: '2026-02-31' })!)).toBe('fecha')
+    expect(campoDeError(validarCambios({ ...c, horaFin: '11:00' })!)).toBe('hora')
+    expect(campoDeError(validarCambios({ ...c, hora: '11:00', horaFin: '09:00' })!)).toBe('horaFin')
+  })
+  it('devuelve null si no reconoce el mensaje', () => {
+    expect(campoDeError('Algo raro')).toBeNull()
+  })
+})

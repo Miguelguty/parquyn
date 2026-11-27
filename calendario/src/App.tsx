@@ -1,9 +1,10 @@
-import { useRef, useState, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { AgendaView } from './components/AgendaView'
+import { Aviso, type AvisoDatos } from './components/Aviso'
 import { FormActividad } from './components/FormActividad'
 import { MesView } from './components/MesView'
 import { PendientesPanel } from './components/PendientesPanel'
-import { aplicarCambios, asignarFecha, crearActividad, ordenar, quitarFecha, type Actividad, type Cambios } from './lib/actividades'
+import { aplicarCambios, asignarFecha, crearActividad, ordenar, quitarFecha, type Actividad, type Cambios, type Pendiente } from './lib/actividades'
 import { cargar, guardar, type Datos } from './lib/almacen'
 import { descargar, type ResultadoDescarga } from './lib/descargar'
 import { NOMBRE_FORMATO, crearExcel, crearFormato, nombreArchivo } from './lib/exportar'
@@ -47,7 +48,22 @@ export default function App() {
   const [pendiente, setPendiente] = useState<File | null>(null)
   const [agregando, setAgregando] = useState(false)
   const [fechaNueva, setFechaNueva] = useState(hoy)
-  const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+  const [mensaje, setMensajeEstado] = useState<AvisoDatos | null>(null)
+  const idAviso = useRef(0)
+  const datosRef = useRef(datos)
+  useEffect(() => {
+    datosRef.current = datos
+  }, [datos])
+
+  /** Muestra un aviso flotante (o lo quita con null). Cada aviso nuevo reemplaza al anterior. */
+  function setMensaje(m: { tipo: 'ok' | 'error'; texto: string; deshacer?: () => void } | null) {
+    if (!m) {
+      setMensajeEstado(null)
+      return
+    }
+    idAviso.current += 1
+    setMensajeEstado({ id: idAviso.current, ...m })
+  }
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [arrastrando, setArrastrando] = useState(false)
@@ -191,7 +207,22 @@ export default function App() {
     }
     setDatos(nuevo)
     guardar(nuevo)
-    setMensaje({ tipo: 'ok', texto: `"${actividad.dependencia || 'La actividad'}" volvió a la lista Sin fecha.` })
+    setMensaje({
+      tipo: 'ok',
+      texto: `"${actividad.dependencia || 'La actividad'}" volvió a la lista Sin fecha.`,
+      deshacer: () => {
+        const actual = datosRef.current
+        if (!actual) return
+        const vuelve: Datos = {
+          ...actual,
+          actividades: ordenar([...actual.actividades, actividad]),
+          sinFecha: (actual.sinFecha ?? []).filter((p) => p.id !== id),
+        }
+        setDatos(vuelve)
+        guardar(vuelve)
+        setMensaje(null)
+      },
+    })
   }
 
   function borrarActividad(id: string) {
@@ -201,14 +232,44 @@ export default function App() {
     const nuevo: Datos = { ...datos, actividades: datos.actividades.filter((a) => a.id !== id) }
     setDatos(nuevo)
     guardar(nuevo)
-    setMensaje({ tipo: 'ok', texto: `Se borró "${actividad.dependencia || 'la actividad'}" del calendario.` })
+    setMensaje({
+      tipo: 'ok',
+      texto: `Se borró "${actividad.dependencia || 'la actividad'}" del calendario.`,
+      deshacer: () => {
+        const actual = datosRef.current
+        if (!actual) return
+        const vuelve: Datos = { ...actual, actividades: ordenar([...actual.actividades, actividad]) }
+        setDatos(vuelve)
+        guardar(vuelve)
+        setMensaje(null)
+        setSeleccionado(actividad.fecha)
+        setCursor({ año: +actividad.fecha.slice(0, 4), mes: +actividad.fecha.slice(5, 7) - 1 })
+      },
+    })
   }
 
   function quitarPendiente(id: string) {
     if (!datos) return
+    const quitado: Pendiente | undefined = datos.sinFecha?.find((p) => p.id === id)
+    if (!quitado) return
     const nuevo: Datos = { ...datos, sinFecha: (datos.sinFecha ?? []).filter((p) => p.id !== id) }
     setDatos(nuevo)
     guardar(nuevo)
+    setMensaje({
+      tipo: 'ok',
+      texto: `Se quitó "${quitado.dependencia}" de la lista Sin fecha.`,
+      deshacer: () => {
+        const actual = datosRef.current
+        if (!actual) return
+        const vuelve: Datos = {
+          ...actual,
+          sinFecha: [...(actual.sinFecha ?? []), quitado].sort((p, q) => p.fila - q.fila),
+        }
+        setDatos(vuelve)
+        guardar(vuelve)
+        setMensaje(null)
+      },
+    })
   }
 
   function marcarCancelada(id: string, cancelada: boolean) {
@@ -252,6 +313,13 @@ export default function App() {
 
   const avisosCuenta = datos ? datos.actividades.filter((a) => a.avisos.length > 0).length : 0
 
+  /** Región fija para avisos: siempre montada para que los lectores de pantalla anuncien lo que aparece. */
+  const avisoFlotante = (
+    <div className="aviso-region" aria-live="polite">
+      {mensaje && <Aviso key={mensaje.id} aviso={mensaje} onCerrar={() => setMensaje(null)} />}
+    </div>
+  )
+
   const selector = (
     <input
       ref={entrada}
@@ -267,7 +335,7 @@ export default function App() {
 
   if (!datos) {
     return (
-      <main className="contenedor">
+      <main className={`contenedor${mensaje ? ' con-aviso' : ''}`}>
         <h1>Mi calendario</h1>
         {selector}
         <div
@@ -289,11 +357,6 @@ export default function App() {
           </p>
         </div>
         {error && <p role="alert" className="error">{error}</p>}
-        {mensaje && (
-          <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={mensaje.tipo === 'error' ? 'error' : 'exito'}>
-            {mensaje.texto}
-          </p>
-        )}
         <section className="ayuda">
           <h2>¿Cómo debe ser el Excel?</h2>
           <p>
@@ -309,12 +372,13 @@ export default function App() {
             texto se leen con el día primero (3/12/2026 es 3 de diciembre).
           </p>
         </section>
+        {avisoFlotante}
       </main>
     )
   }
 
   return (
-    <main className="contenedor">
+    <main className={`contenedor${mensaje ? ' con-aviso' : ''}`}>
       <header className="barra">
         <div>
           <h1>Mi calendario</h1>
@@ -348,22 +412,17 @@ export default function App() {
             <button type="button" onClick={borrar}>Salir del ejemplo</button>
           ) : confirmandoBorrar ? (
             <span className="confirmar" role="group" aria-label="Confirmar borrado">
-              <span>¿Borrar del dispositivo? Tu Excel no se toca.</span>
-              <button type="button" className="peligro" onClick={borrar}>Sí, borrar</button>
-              <button type="button" onClick={() => setConfirmandoBorrar(false)}>No</button>
+              <span>¿Borrar todo el calendario de este dispositivo? Tu Excel no se toca.</span>
+              <button type="button" className="peligro" onClick={borrar}>Borrar todo</button>
+              <button type="button" onClick={() => setConfirmandoBorrar(false)}>Conservar</button>
             </span>
           ) : (
-            <button type="button" className="peligro" onClick={() => setConfirmandoBorrar(true)}>Borrar</button>
+            <button type="button" className="peligro" onClick={() => setConfirmandoBorrar(true)}>Borrar todo</button>
           )}
         </div>
       </header>
 
       {error && <p role="alert" className="error">{error}</p>}
-      {mensaje && (
-        <p role={mensaje.tipo === 'error' ? 'alert' : 'status'} className={mensaje.tipo === 'error' ? 'error' : 'exito'}>
-          {mensaje.texto}
-        </p>
-      )}
 
       {pendiente && (
         <div role="alert" className="aviso-carga">
@@ -410,9 +469,9 @@ export default function App() {
       )}
 
       <nav className="controles" aria-label="Vista">
-        <div className="pestanas" role="tablist">
-          <button type="button" role="tab" aria-selected={vista === 'mes'} onClick={() => setVista('mes')}>Mes</button>
-          <button type="button" role="tab" aria-selected={vista === 'agenda'} onClick={() => setVista('agenda')}>Agenda</button>
+        <div className="pestanas" role="group" aria-label="Tipo de vista">
+          <button type="button" aria-pressed={vista === 'mes'} onClick={() => setVista('mes')}>Mes</button>
+          <button type="button" aria-pressed={vista === 'agenda'} onClick={() => setVista('agenda')}>Agenda</button>
         </div>
         {vista === 'mes' && (
           <div className="meses">
@@ -470,6 +529,7 @@ export default function App() {
       ) : (
         <AgendaView actividades={datos.actividades} hoy={hoy} onGuardar={guardarCambios} onCancelada={marcarCancelada} onQuitarFecha={quitarFechaDe} onBorrar={borrarActividad} />
       )}
+      {avisoFlotante}
     </main>
   )
 }

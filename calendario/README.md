@@ -24,7 +24,7 @@ columnas; solo **Fecha** es obligatoria y el resto son opcionales:
 - **Hora** acepta celdas de hora de Excel o texto: `9:00`, `14:30`, `3 PM`, `8:00 AM`, rangos como `9:00 a 11:30` o `10:00 – 12:00`.
   Si no se entiende, la actividad se muestra igual con el texto original y un aviso.
 - **Filas sin fecha:** una fila con dependencia pero sin fecha no es un error: va a la lista **Sin fecha**, desde donde
-  se le asigna una fecha y pasa al calendario, o se **quita de la lista** (con confirmación; no se toca tu Excel y
+  se le asigna una fecha y pasa al calendario, o se **quita de la lista** (se aplica al instante y se puede **Deshacer** unos segundos; no se toca tu Excel y
   vuelve a aparecer si recargas el original). Un título de sección que empiece por "Sin fecha" se ignora.
 - Se lee la primera hoja del archivo. Acepta `.xlsx` y `.xlsm` (las macros no se leen ni se ejecutan).
 - Un archivo nuevo reemplaza al anterior.
@@ -37,9 +37,21 @@ columnas; solo **Fecha** es obligatoria y el resto son opcionales:
 - **Cancelar actividad** no la borra: queda tachada y con la etiqueta "Cancelada", y se puede **Reactivar**.
 - **Quitar fecha** devuelve una actividad programada a la lista "Sin fecha" (conserva hora, lugar y demás datos; deja
   de estar cancelada) y se puede volver a programar.
-- **Borrar** elimina la actividad del todo, con confirmación y sin deshacer (a diferencia de Cancelar, que la deja tachada).
+- **Borrar** elimina la actividad del todo (a diferencia de Cancelar, que la deja tachada). Se aplica al instante y aparece un
+  aviso abajo con **Deshacer** durante ~10 segundos; pasado ese tiempo ya no se puede recuperar.
+- **Borrar todo** (el calendario completo del dispositivo) sí pide confirmación, con los botones "Borrar todo" y "Conservar".
 - Los cambios se guardan solo en el dispositivo; **no se escriben de vuelta en el Excel**. Por eso, antes de cargar
   otro Excel, la app avisa si hay cambios (editadas, canceladas o nuevas) que se perderían.
+
+## Diseño y accesibilidad
+
+Revisado con la guía de [ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill):
+
+- Botones y campos de **44 px** (48 px en pantallas táctiles), con respuesta al toque; separación de 8 px entre ellos.
+- Contraste medido (no estimado) en tema claro y oscuro: texto 4,5:1 y bordes de controles 3:1.
+- Avisos flotantes abajo (zona segura del teléfono) con **Deshacer**; los errores no se cierran solos.
+- Errores de formulario junto al campo, con el foco puesto en él (`aria-invalid` y `aria-describedby`).
+- Sin desbordes horizontales a 320 y 375 px, ni con el texto ampliado al 200 %.
 
 ## Exportar a Excel
 

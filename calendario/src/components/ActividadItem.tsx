@@ -24,7 +24,6 @@ const desde = (a: Actividad): Cambios => ({
 
 export function ActividadItem({ a, onGuardar, onCancelada, onQuitarFecha, onBorrar }: Props) {
   const [editando, setEditando] = useState(false)
-  const [borrando, setBorrando] = useState(false)
 
   if (editando) {
     return (
@@ -78,15 +77,7 @@ export function ActividadItem({ a, onGuardar, onCancelada, onQuitarFecha, onBorr
             {a.cancelada ? 'Reactivar' : 'Cancelar actividad'}
           </button>
           <button type="button" onClick={() => onQuitarFecha(a.id)}>Quitar fecha</button>
-          {borrando ? (
-            <span className="confirmar" role="group" aria-label={`Confirmar borrar ${a.dependencia}`}>
-              <span>¿Borrar "{a.dependencia || 'sin dependencia'}" del todo? No se puede deshacer.</span>
-              <button type="button" className="peligro" onClick={() => onBorrar(a.id)}>Sí, borrar</button>
-              <button type="button" onClick={() => setBorrando(false)}>No</button>
-            </span>
-          ) : (
-            <button type="button" className="peligro" onClick={() => setBorrando(true)}>Borrar</button>
-          )}
+          <button type="button" className="peligro" onClick={() => onBorrar(a.id)}>Borrar</button>
           <span className="muted fila">{a.nueva ? 'Agregada aquí' : `Fila ${a.fila} del Excel`}</span>
         </div>
       </div>
