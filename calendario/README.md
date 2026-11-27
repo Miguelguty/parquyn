@@ -57,11 +57,29 @@ lo cancelado y lo asignado), en el mismo formato que se carga:
 ## Publicar en un servidor
 
 La app es un sitio estático (sin servidor propio). `npm run build` genera `dist/` con rutas relativas, así que funciona
-desde cualquier subcarpeta, por ejemplo `https://mi-servidor/legacy/calendario/`:
+desde cualquier subcarpeta, por ejemplo `https://mi-servidor/legacy/calendario/`.
+
+### En el devserver, con Docker (script `deploy-calendario.sh`)
+
+Como root, dentro del devserver (no necesita Node: el sitio se construye en un contenedor):
+
+```bash
+git clone -b ccr-f550b3df-dqncno https://github.com/Miguelguty/parquyn.git /tmp/parquyn-calendario
+bash /tmp/parquyn-calendario/calendario/deploy-calendario.sh
+```
+
+- **Por defecto** levanta un contenedor nginx en el puerto `8089` (`PORT=8090 bash deploy-calendario.sh` para otro).
+- **Si ya tienes una carpeta `legacy` servida por la web**, copia ahí el sitio:
+  `LEGACY_DIR=/ruta/de/legacy bash deploy-calendario.sh` deja `.../legacy/calendario/index.html` y no toca las demás
+  carpetas (solo reemplaza `calendario/assets`).
+- Es re-ejecutable: para actualizar, vuelve a correr el mismo comando (hace `git pull`, reconstruye y publica).
+- Variables opcionales: `BRANCH`, `PORT`, `APP_DIR` (por defecto `/opt/calendario`), `REPO_URL`, `NODE_IMAGE`, `LEGACY_DIR`.
+
+### A mano
 
 1. `npm install && npm run build`
 2. Copia el **contenido** de `dist/` (`index.html`, `favicon.svg` y la carpeta `assets/`) a la carpeta que el servidor
-   publica como `/legacy/calendario/`.
+   publica.
 
 Los datos que cargas se guardan en el navegador de **cada dispositivo** (localStorage, ligado al nombre del sitio):
 el celular y el computador no comparten calendario. Para pasar datos de uno a otro, usa **Exportar a Excel** y
